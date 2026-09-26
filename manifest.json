@@ -1,0 +1,33 @@
+{
+  "name": "پیسفون تست",
+  "short_name": "پیسفون تست",
+  "description": "پیام‌رسان آفلاین مدرن با هوش مصنوعی",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "dir": "rtl",
+  "lang": "fa",
+  "icons": [
+    {
+      "src": "https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
