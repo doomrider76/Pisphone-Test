@@ -1,10 +1,11 @@
 /* =========================================================
-   پیسفون v1.12
+   پیسفون v1.15
    ========================================================= */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const escRegex = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const icon = (name, size = 20) => `<svg width="${size}" height="${size}"><use href="#i-${name}"/></svg>`;
 const KEY = 'pisfon_v3';
@@ -20,6 +21,17 @@ function setViewport() {
 setViewport();
 window.addEventListener('resize', setViewport);
 window.addEventListener('orientationchange', () => setTimeout(setViewport, 200));
+
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const applyVV = () => {
+    document.documentElement.style.setProperty('--kb',
+      (window.innerHeight - vv.height - vv.offsetTop) + 'px');
+  };
+  vv.addEventListener('resize', applyVV);
+  vv.addEventListener('scroll', applyVV);
+  applyVV();
+}
 
 /* ===================== FULLSCREEN ===================== */
 let _fsOnce = false;
@@ -60,41 +72,39 @@ document.addEventListener('fullscreenchange', () => {
     });
   }
 });
-document.addEventListener('webkitfullscreenchange', () => {
-  if (!document.webkitFullscreenElement) {
-    _fsOnce = false;
-    ['touchstart', 'click', 'keydown'].forEach(ev => {
-      document.addEventListener(ev, tryFullscreenOnce, { once: true, passive: true });
-    });
-  }
-});
 document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
 document.addEventListener('touchmove', e => {
   if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
 document.addEventListener('contextmenu', e => {
-  if (!e.target.closest('#msg-input') && !e.target.closest('.btext')) {
+  if (!e.target.closest('#msg-input') && !e.target.closest('.btext') &&
+      !e.target.closest('.modal-box input')) {
     e.preventDefault();
   }
 });
 
 /* ===================== VERSION ===================== */
-const APP_VERSION = '1.12';
+const APP_VERSION = '1.15';
 const VERSION_KEY = 'pisfon_version';
 const CHANGELOG = [
-  'باگ نسخه‌های iPhone فیکس شد',
-  'زیرساخت برنامه آپدیت شد',
-  'لودینگ برنامه حذف شد',
-  'لیست کانال‌ها آپدیت شد',
-  'دستیار هوشمند پیسفون برگشت',
-  'تیک آبی سفید شد',
-  'منوی کانال/گروه با نگه‌داشتن در لیست',
-  'آیکون‌های نوار تب مدرن‌تر شدن',
-  'فاصله بین آیکون و متن نوار تب بیشتر شد',
-  'چت گروه و کانال فیکس شد'
+  'نوار پایین شبیه تلگرام (شناور و گرد)',
+  'تب‌های فیلتر افقی بالای لیست',
+  'فیلتر: همه / خصوصی / گروه / کانال / AI / ذخیره‌شده',
+  'دکمه شناور جستجو سمت راست',
+  'همه باگ‌های قبلی فیکس',
+  'پیام صوتی و عکس واقعی',
+  'نوتیفیکیشن مرورگر',
+  'تم روشن و تاریک'
 ];
 
 const renderedMsgIds = new Set();
+const MAX_RENDERED = 5000;
+function pruneRenderedIds() {
+  if (renderedMsgIds.size <= MAX_RENDERED) return;
+  const valid = new Set();
+  state.chats.forEach(c => c.messages.forEach(m => valid.add(m.id)));
+  [...renderedMsgIds].forEach(id => { if (!valid.has(id)) renderedMsgIds.delete(id); });
+}
 
 const AV_GRADS = [
   ['#ff6b6b','#c92a2a'], ['#51cf66','#2b8a3e'], ['#ffd43b','#e67700'],
@@ -157,7 +167,7 @@ function defaultState() {
   return {
     me: { name: 'من', phone: '+98 ', avatar: { type: 'gradient', value: 3 }, verified: true },
     theme: 'dark',
-    settings: { autoReply: true, autoIncoming: false, enterToSend: true, sounds: false, aiMode: true },
+    settings: { autoReply: true, autoIncoming: false, enterToSend: true, sounds: false, aiMode: true, notifications: true },
     chats: [
       {
         id: 'ai_assistant',
@@ -169,6 +179,7 @@ function defaultState() {
         isPublic: true,
         online: true,
         unread: 0, pinned: true, muted: false,
+        draft: '',
         createdAt: now - 3600000,
         messages: [
           { id: rid(), out: false, ts: now - 60000, type: 'text',
@@ -192,7 +203,7 @@ function defaultState() {
           { name: 'سارا', avatar: { type: 'emoji', value: '👧' } },
           { name: 'رضا', avatar: { type: 'emoji', value: '👦' } }
         ],
-        unread: 0, pinned: false, muted: false,
+        unread: 0, pinned: false, muted: false, draft: '',
         createdAt: now - 86400000,
         messages: [
           { id: rid(), out: false, ts: now - 7200000, type: 'text', sender: 'مامان', text: 'سلام بچه‌ها 👋 امروز کجا بریم؟' },
@@ -209,7 +220,7 @@ function defaultState() {
         verified: false,
         username: '',
         isPublic: false,
-        unread: 0, pinned: false, muted: false,
+        unread: 0, pinned: false, muted: false, draft: '',
         createdAt: now - 86400000 * 3,
         messages: [
           { id: rid(), out: true, ts: now - 86400000 * 2, type: 'text',
@@ -229,14 +240,14 @@ function load() {
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.chats)) return null;
     s.settings = Object.assign(
-      { autoReply: true, autoIncoming: false, enterToSend: true, sounds: false, aiMode: true },
+      { autoReply: true, autoIncoming: false, enterToSend: true, sounds: false, aiMode: true, notifications: true },
       s.settings);
     if (!Array.isArray(s.contacts)) s.contacts = [];
     if (!s.me.avatar) s.me.avatar = { type: 'gradient', value: 3 };
     if (typeof s.me.verified !== 'boolean') s.me.verified = true;
     if (!s.me.phone) s.me.phone = '+98 ';
+    if (s.theme !== 'light' && s.theme !== 'dark') s.theme = 'dark';
 
-    /* ✅ اگر دستیار پیسفون حذف شده بود، برگردون */
     if (!s.chats.find(c => c.id === 'ai_assistant')) {
       const aiChat = defaultState().chats[0];
       s.chats.unshift(aiChat);
@@ -247,8 +258,12 @@ function load() {
       if (typeof c.verified !== 'boolean') c.verified = false;
       if (typeof c.username !== 'string') c.username = '';
       if (typeof c.isPublic !== 'boolean') c.isPublic = c.type === 'channel';
+      if (typeof c.draft !== 'string') c.draft = '';
       if ((c.type === 'group' || c.type === 'channel') && typeof c.members !== 'number') {
         c.members = c.type === 'group' ? 1 : 0;
+      }
+      if (c.type === 'group' && Array.isArray(c.membersList) && c.membersList.length > (c.members || 0)) {
+        c.members = c.membersList.length;
       }
       if (c.type === 'group' && !c.membersList) {
         c.membersList = (c.memberNames || []).map(n => {
@@ -274,12 +289,32 @@ function save() {
 }
 state = load() || defaultState();
 
-/* ===================== HELPERS ===================== */
-function hashInt(str, mod) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h) % mod;
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.theme || 'dark');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = state.theme === 'light' ? '#f2f2f7' : '#0d0d14';
 }
+applyTheme();
+
+/* ===================== NOTIFICATIONS ===================== */
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    try { await Notification.requestPermission(); } catch {}
+  }
+}
+function notifyIncoming(chat, text) {
+  if (!state.settings.notifications) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (chat.muted) return;
+  if (document.visibilityState === 'visible' && activeChatId === chat.id) return;
+  try {
+    const n = new Notification(chat.name, { body: text, tag: chat.id, silent: !state.settings.sounds });
+    n.onclick = () => { window.focus(); if (chat.id) openChat(chat.id); n.close(); };
+  } catch {}
+}
+
+/* ===================== HELPERS ===================== */
 function nameColorPair(name) {
   const n = String(name || 'x');
   let h = 0;
@@ -295,12 +330,15 @@ function initials(name) {
   if (parts.length === 1) return parts[0][0];
   return parts[0][0] + parts[1][0];
 }
+function safeUrlCss(u) {
+  return String(u).replace(/['"()\\\n\r]/g, c => '\\' + c.charCodeAt(0).toString(16) + ' ');
+}
 function avatarHTML(entity, size = 54) {
   const av = entity.avatar || { type: 'gradient', value: 0 };
   const dim = (size === 38 || size === 40) ? ' sm' : (size >= 86 ? ' big' : '');
   const klass = `avatar${dim}`;
   if (av.type === 'image') {
-    return `<div class="${klass}" style="background-image:url('${av.value}');background-size:cover;background-position:center"></div>`;
+    return `<div class="${klass}" style="background-image:url(&quot;${esc(safeUrlCss(av.value))}&quot;);background-size:cover;background-position:center"></div>`;
   }
   if (av.type === 'gradient') {
     const g = AV_GRADS[(av.value || 0) % AV_GRADS.length];
@@ -316,7 +354,7 @@ function avatarHTML(entity, size = 54) {
 function avatarBgStyle(entity) {
   const av = entity.avatar || { type: 'gradient', value: 0 };
   if (av.type === 'image') {
-    return `background-image:url('${av.value}');background-size:cover;background-position:center`;
+    return `background-image:url(&quot;${esc(safeUrlCss(av.value))}&quot;);background-size:cover;background-position:center`;
   }
   if (av.type === 'gradient') {
     const g = AV_GRADS[(av.value || 0) % AV_GRADS.length];
@@ -355,7 +393,17 @@ function fmtListTime(ts) {
   if (d.toDateString() === y.toDateString()) return 'دیروز';
   return d.toLocaleDateString('fa-IR', { day: 'numeric', month: 'numeric' });
 }
-const fmtDur = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const fmtDur = s => {
+  const total = Math.max(0, Math.floor(s));
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+};
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
 
 let toastTimer;
 function toast(t) {
@@ -391,45 +439,99 @@ function previewText(c) {
   return t;
 }
 
+/* ===================== CHAT FILTER ===================== */
+let chatFilter = 'all';
+
 /* ===================== RENDER: LIST ===================== */
+let searchDebounceTimer = null;
 function renderChatList() {
-  const q = ($('#search-input').value || '').trim().toLowerCase();
-  let list = state.chats.filter(c => !q || c.name.toLowerCase().includes(q));
+  const q = ($('#search-input').value || '').trim();
+  const qLower = q.toLowerCase();
+  let list = state.chats.filter(c => !q || c.name.toLowerCase().includes(qLower));
+
+  if (chatFilter !== 'all') {
+    list = list.filter(c => {
+      if (chatFilter === 'private') return c.type === 'private';
+      if (chatFilter === 'group')   return c.type === 'group';
+      if (chatFilter === 'channel') return c.type === 'channel';
+      if (chatFilter === 'ai')      return c.type === 'ai';
+      if (chatFilter === 'saved')   return c.type === 'saved';
+      return true;
+    });
+  }
+
   list = list.slice().sort((a, b) => (b.pinned - a.pinned) || (lastTs(b) - lastTs(a)));
 
   const box = $('#chat-list');
-  if (!list.length) {
-    box.innerHTML = state.chats.length
+  const clearBtn = $('#search-clear');
+  if (clearBtn) clearBtn.classList.toggle('show', q.length > 0);
+
+  let msgResultsHtml = '';
+  if (q.length >= 2) {
+    const results = [];
+    state.chats.forEach(c => {
+      c.messages.forEach(m => {
+        if (m.type === 'text' && m.text && m.text.toLowerCase().includes(qLower)) {
+          results.push({ chat: c, msg: m });
+        }
+      });
+    });
+    results.sort((a, b) => b.msg.ts - a.msg.ts);
+    const top = results.slice(0, 30);
+    if (top.length) {
+      msgResultsHtml = `<div class="search-section-title">پیام‌ها (${results.length.toLocaleString('fa-IR')})</div>` +
+        top.map(r => {
+          const t = r.msg.text;
+          const idx = t.toLowerCase().indexOf(qLower);
+          const before = esc(t.slice(Math.max(0, idx - 30), idx));
+          const match = esc(t.slice(idx, idx + q.length));
+          const after = esc(t.slice(idx + q.length, idx + q.length + 60));
+          const sender = r.msg.out ? 'شما' : (r.msg.sender || r.chat.name);
+          return `<div class="msg-search-result" data-result-chat="${r.chat.id}" data-result-msg="${r.msg.id}">
+            ${avatarHTML(r.chat, 38)}
+            <div class="msr-body">
+              <div class="msr-name">${esc(r.chat.name)} — <span style="color:var(--text-3);font-weight:500">${esc(sender)}</span></div>
+              <div class="msr-text">…${before}<mark>${match}</mark>${after}…</div>
+            </div>
+          </div>`;
+        }).join('');
+    }
+  }
+
+  let chatListHtml;
+  if (!list.length && !msgResultsHtml) {
+    chatListHtml = state.chats.length
       ? `<div class="empty">${icon('search', 48)}<div class="ttl">چیزی پیدا نشد</div></div>`
       : `<div class="empty">
           ${icon('chat-outline', 56)}
           <div class="ttl">هنوز گفتگویی نداری</div>
-          برای شروع روی دکمه + بزن
+          برای شروع روی + بالای صفحه بزن
         </div>`;
-    return;
+  } else {
+    chatListHtml = list.map(c => {
+      const m = lastMsg(c);
+      const badge = c.unread > 0
+        ? `<span class="badge ${c.muted ? 'muted' : ''}">${c.unread.toLocaleString('fa-IR')}</span>` : '';
+      const pin = c.pinned ? `<span class="pin">${icon('pin', 14)}</span>` : '';
+      const ticks = m && m.out
+        ? `<span class="ticks">${icon(m.status === 'read' ? 'double-check' : 'check', 15)}</span>` : '';
+      return `<div class="chat-item" data-id="${c.id}">
+        ${avatarHTML(c)}
+        <div class="ci-body">
+          <div class="ci-top">
+            <span class="ci-name">${nameWithVf(c.name, c.verified, 17)}</span>
+            <span class="ci-time">${m ? ticks : ''}${m ? fmtListTime(lastTs(c)) : ''}</span>
+          </div>
+          <div class="ci-bot">
+            <span class="ci-prev">${esc(previewText(c))}</span>
+            ${pin}${badge}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
-  box.innerHTML = list.map(c => {
-    const m = lastMsg(c);
-    const badge = c.unread > 0
-      ? `<span class="badge ${c.muted ? 'muted' : ''}">${c.unread.toLocaleString('fa-IR')}</span>` : '';
-    const pin = c.pinned ? `<span class="pin">${icon('pin', 14)}</span>` : '';
-    const ticks = m && m.out
-      ? `<span class="ticks">${icon(m.status === 'read' ? 'double-check' : 'check', 15)}</span>` : '';
-    return `<div class="chat-item" data-id="${c.id}">
-      ${avatarHTML(c)}
-      <div class="ci-body">
-        <div class="ci-top">
-          <span class="ci-name">${nameWithVf(c.name, c.verified, 17)}</span>
-          <span class="ci-time">${m ? ticks : ''}${m ? fmtListTime(lastTs(c)) : ''}</span>
-        </div>
-        <div class="ci-bot">
-          <span class="ci-prev">${esc(previewText(c))}</span>
-          ${pin}${badge}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  box.innerHTML = msgResultsHtml + chatListHtml;
 }
 
 /* ===================== RENDER: CONTACTS ===================== */
@@ -439,7 +541,7 @@ function renderContacts() {
     box.innerHTML = `<div class="empty">
       ${icon('users', 56)}
       <div class="ttl">مخاطبین خالی است</div>
-      از دکمه + در تب گفتگوها یک چت جدید بساز
+      از دکمه + در بالای صفحه یک چت جدید بساز
     </div>`;
     return;
   }
@@ -459,6 +561,8 @@ function renderContacts() {
 function renderSettings() {
   const s = state.settings;
   const me = state.me;
+  const themeIcon = state.theme === 'light' ? 'sun' : 'moon';
+  const themeLabel = state.theme === 'light' ? 'روشن' : 'تاریک';
   $('#settings-body').innerHTML = `
     <div class="profile-card">
       <button class="pc-edit-btn" id="btn-edit-profile">${icon('edit', 14)} ویرایش</button>
@@ -489,6 +593,14 @@ function renderSettings() {
         <span class="sl"></span></label>
       </div>
     </div>
+    <div class="section-title">ظاهر</div>
+    <div class="group">
+      <div class="row" data-act="toggle-theme">
+        <span class="r-icon">${icon(themeIcon, 20)}</span>
+        <span class="r-text">تم ${themeLabel}</span>
+        <span class="chev">${icon('chevron', 18)}</span>
+      </div>
+    </div>
     <div class="section-title">هوش مصنوعی</div>
     <div class="group">
       <div class="row">
@@ -504,6 +616,12 @@ function renderSettings() {
         <span class="r-icon">${icon('chat-outline', 20)}</span>
         <span class="r-text">پاسخ خودکار مخاطبین</span>
         <label class="switch"><input type="checkbox" data-set="autoReply" ${s.autoReply ? 'checked' : ''}>
+        <span class="sl"></span></label>
+      </div>
+      <div class="row">
+        <span class="r-icon">${icon('bell', 20)}</span>
+        <span class="r-text">نوتیفیکیشن مرورگر</span>
+        <label class="switch"><input type="checkbox" data-set="notifications" ${s.notifications ? 'checked' : ''}>
         <span class="sl"></span></label>
       </div>
       <div class="row">
@@ -541,13 +659,25 @@ function renderSettings() {
 /* ===================== RENDER: MESSAGES ===================== */
 let activeChatId = null;
 let replyToMsg = null;
+let msgSearchQuery = '';
+let msgSearchHits = [];
+let msgSearchIndex = -1;
+
+function highlightMatch(text, q) {
+  if (!q) return esc(text);
+  try {
+    const re = new RegExp('(' + escRegex(q) + ')', 'ig');
+    return esc(text).replace(re, '<span class="msg-highlight">$1</span>');
+  } catch { return esc(text); }
+}
 
 function msgHTML(chat, m, prevMsg, nextMsg) {
   const isNew = !renderedMsgIds.has(m.id);
   renderedMsgIds.add(m.id);
   const animClass = isNew ? '' : ' no-anim';
   const aiClass = (chat.type === 'ai' && !m.out) ? ' ai' : '';
-  const cls = `msg ${m.out ? 'out' : 'in'}${animClass}${aiClass}`;
+  const isHit = msgSearchHits.includes(m.id);
+  const cls = `msg ${m.out ? 'out' : 'in'}${animClass}${aiClass}${isHit ? ' search-hit' : ''}`;
 
   let inner = '';
 
@@ -573,12 +703,18 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
     inner += `<div class="ai-label">${icon('sparkle', 12)} دستیار هوشمند</div>`;
   }
 
-  if (m.type === 'photo' || m.type === 'location') {
-    const bg = m.type === 'location'
-      ? 'linear-gradient(135deg,#43cea2,#185a9d)'
-      : (m.bg || 'linear-gradient(135deg,#667eea,#764ba2)');
-    const ico = icon(m.type === 'location' ? 'location' : 'camera', 56);
-    inner += `<div class="media" style="background:${bg}">${ico}` +
+  if (m.type === 'photo') {
+    if (m.dataUrl) {
+      inner += `<div class="media" style="background:#000"><img src="${esc(m.dataUrl)}" alt="">` +
+               (m.text ? `<div class="cap">${esc(m.text)}</div>` : '') + `</div>`;
+    } else {
+      const bg = m.bg || 'linear-gradient(135deg,#667eea,#764ba2)';
+      inner += `<div class="media" style="background:${bg}">${icon('camera', 56)}` +
+               (m.text ? `<div class="cap">${esc(m.text)}</div>` : '') + `</div>`;
+    }
+  } else if (m.type === 'location') {
+    const bg = 'linear-gradient(135deg,#43cea2,#185a9d)';
+    inner += `<div class="media" style="background:${bg}">${icon('location', 56)}` +
              (m.text ? `<div class="cap">${esc(m.text)}</div>` : '') + `</div>`;
   } else if (m.type === 'file') {
     inner += `<div class="filemsg">
@@ -593,7 +729,7 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
         <div class="vwave">${bars}</div>
         <span class="vdur">${fmtDur(m.dur || 0)}</span></div>`;
   } else {
-    inner += `<div class="btext">${esc(m.text)}</div>`;
+    inner += `<div class="btext">${highlightMatch(m.text, msgSearchQuery)}</div>`;
   }
 
   let ticks = '';
@@ -603,7 +739,7 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
     else ticks = `<span class="ticks">${icon('check', 15)}</span>`;
   }
 
-  const msgInner = `${inner}<div class="meta"><span>${fmtTime(m.ts)}</span>${ticks}</div>`;
+  const msgInner = `${inner}<div class="meta"><span>${fmtTime(m.ts)}${m.edited ? ' ✎' : ''}</span>${ticks}</div>`;
 
   if (chat.type === 'group' && !m.out) {
     const senderName = m.sender || 'عضو';
@@ -651,19 +787,30 @@ function renderMessages(scroll = true) {
     return;
   }
 
-  let html = '', lastDay = '';
-  chat.messages.forEach((m, i) => {
+  const all = chat.messages;
+  const cap = 300;
+  const startIdx = Math.max(0, all.length - cap);
+
+  let html = '';
+  if (startIdx > 0) {
+    html += `<div class="day-sep"><span>${(startIdx).toLocaleString('fa-IR')} پیام قدیمی‌تر مخفی شده…</span></div>`;
+  }
+
+  let lastDay = '';
+  for (let i = startIdx; i < all.length; i++) {
+    const m = all[i];
     const d = dayKey(m.ts);
     if (d !== lastDay) {
       html += `<div class="day-sep"><span>${fmtDay(m.ts)}</span></div>`;
       lastDay = d;
     }
-    const rawPrev = chat.messages[i - 1] || null;
-    const rawNext = chat.messages[i + 1] || null;
+    const rawPrev = all[i - 1] || null;
+    const rawNext = all[i + 1] || null;
     const prevAdj = (rawPrev && dayKey(rawPrev.ts) === dayKey(m.ts)) ? rawPrev : null;
     const nextAdj = (rawNext && dayKey(rawNext.ts) === dayKey(m.ts)) ? rawNext : null;
     html += msgHTML(chat, m, prevAdj, nextAdj);
-  });
+  }
+
   if (chat.typing) {
     const typingClass = chat.type === 'ai' ? ' in typing ai-thinking' : ' in typing';
     if (chat.type === 'group' && chat.typingSender) {
@@ -682,6 +829,7 @@ function renderMessages(scroll = true) {
       html += `<div class="msg${typingClass}"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
     }
   }
+
   box.innerHTML = html;
   if (scroll) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
 }
@@ -693,7 +841,7 @@ function renderChatHeader() {
   av.textContent = avatarContent(c);
   av.style.background = avatarBgStyle(c);
   if ((c.avatar || {}).type === 'image') {
-    av.style.backgroundImage = `url('${c.avatar.value}')`;
+    av.style.backgroundImage = `url("${safeUrlCss(c.avatar.value)}")`;
     av.style.backgroundSize = 'cover';
     av.style.backgroundPosition = 'center';
   }
@@ -719,21 +867,27 @@ function openChat(id) {
   c.typingSender = null;
   replyToMsg = null;
   hideReplyBar();
+  closeMsgSearch();
   renderChatHeader();
   renderMessages();
   renderChatList();
   $('#screen-chat').classList.add('open');
-  $('#msg-input').value = '';
+  const input = $('#msg-input');
+  input.value = c.draft || '';
   autoGrow();
   updateSendBtn();
   save();
 }
 function closeChat() {
+  const c = getChat(activeChatId);
+  if (c) c.draft = $('#msg-input').value || '';
   $('#screen-chat').classList.remove('open');
   activeChatId = null;
   replyToMsg = null;
   hideReplyBar();
+  closeMsgSearch();
   renderChatList();
+  save();
 }
 
 /* ===================== INFO ===================== */
@@ -938,6 +1092,14 @@ function handleInfoAction(act, c) {
       const n = parseInt(v, 10);
       if (isNaN(n) || n < 0) { toast('عدد معتبر وارد کن'); return; }
       c.members = Math.min(n, 9999999);
+      if (c.type === 'group' && Array.isArray(c.membersList)) {
+        while (c.membersList.length < Math.min(c.members, 50)) {
+          const used = new Set(c.membersList.map(x => x.name));
+          const avail = GROUP_MEMBER_POOL.filter(p => !used.has(p.name));
+          if (!avail.length) break;
+          c.membersList.push({ ...avail[Math.floor(Math.random() * avail.length)] });
+        }
+      }
       renderInfo(); renderChatHeader(); renderChatList(); save();
       toast('تعداد اعضا تغییر کرد');
     });
@@ -960,7 +1122,8 @@ function handleInfoAction(act, c) {
   if (act === 'delete') {
     showConfirm('حذف چت', 'کل این چت حذف شود؟', () => {
       state.chats = state.chats.filter(x => x.id !== c.id);
-      closeInfo(); closeChat(); renderChatList(); save();
+      state.contacts = state.contacts.filter(x => x.id !== c.id);
+      closeInfo(); closeChat(); renderChatList(); renderContacts(); save();
       toast('چت حذف شد');
     });
     return;
@@ -981,7 +1144,11 @@ function sendMessage(extra = {}, textOverride) {
   }, extra);
 
   chat.messages.push(m);
-  if (textOverride === undefined) { input.value = ''; autoGrow(); updateSendBtn(); }
+  if (textOverride === undefined) {
+    input.value = '';
+    chat.draft = '';
+    autoGrow(); updateSendBtn();
+  }
   replyToMsg = null; hideReplyBar();
   renderMessages();
   renderChatList();
@@ -1031,6 +1198,7 @@ async function scheduleAIReply(chat, userMsg) {
       if (activeChatId === c.id) { renderChatHeader(); renderMessages(); }
       renderChatList(); save();
       if (state.settings.sounds) beep();
+      notifyIncoming(c, member.name + ': ' + replyText);
     }
     return;
   }
@@ -1050,6 +1218,7 @@ async function scheduleAIReply(chat, userMsg) {
   if (activeChatId === c.id) { renderChatHeader(); renderMessages(); }
   renderChatList(); save();
   if (state.settings.sounds) beep();
+  notifyIncoming(c, replyText);
 }
 
 const REPLIES = ['باشه 👍','چه جالب!','الان چک می‌کنم','مرسی 🙏','کاملاً موافقم','بعداً حرف می‌زنیم','عالیه!','دقیقاً','ممنون از پیامت','می‌شه بیشتر توضیح بدی؟','حتماً چشم','من هم همین فکر رو می‌کردم','خبر خوبیه!','🤔','😄'];
@@ -1070,11 +1239,13 @@ function scheduleReply(chat) {
         sender = member.name;
         c.typingSender = null;
       }
-      c.messages.push({ id: rid(), text: REPLIES[Math.floor(Math.random() * REPLIES.length)], out: false, ts: Date.now(), type: 'text', replyTo: null, sender });
+      const replyText = REPLIES[Math.floor(Math.random() * REPLIES.length)];
+      c.messages.push({ id: rid(), text: replyText, out: false, ts: Date.now(), type: 'text', replyTo: null, sender });
       if (activeChatId !== c.id) c.unread = (c.unread || 0) + 1;
       if (activeChatId === c.id) { renderChatHeader(); renderMessages(); }
       renderChatList(); save();
       if (state.settings.sounds) beep();
+      notifyIncoming(c, replyText);
     }, 900 + Math.random() * 1400);
   }, 800 + Math.random() * 1400);
 }
@@ -1105,50 +1276,117 @@ function updateSendBtn() {
   const has = inputEl.value.trim().length > 0;
   sendBtn.innerHTML = has ? icon('send', 22) : icon('mic', 22);
 }
-inputEl.addEventListener('input', () => { autoGrow(); updateSendBtn(); });
+inputEl.addEventListener('input', () => {
+  autoGrow(); updateSendBtn();
+  const c = getChat(activeChatId);
+  if (c) { c.draft = inputEl.value; save(); }
+});
 inputEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && state.settings.enterToSend && window.innerWidth > 820) {
     e.preventDefault(); sendMessage();
   }
 });
-sendBtn.addEventListener('click', () => {
+
+let sendBtnPointerDown = false;
+let sendBtnClickFired = false;
+sendBtn.addEventListener('click', e => {
+  if (sendBtnClickFired) { sendBtnClickFired = false; return; }
   if (inputEl.value.trim()) sendMessage();
-  else toast('برای ضبط صدا، دکمه را نگه دار');
+});
+sendBtn.addEventListener('pointerdown', e => {
+  if (inputEl.value.trim()) return;
+  sendBtnPointerDown = true;
+  e.preventDefault();
+  startRec();
+});
+document.addEventListener('pointerup', () => {
+  if (!sendBtnPointerDown) return;
+  sendBtnPointerDown = false;
+  sendBtnClickFired = true;
+  setTimeout(() => { sendBtnClickFired = false; }, 200);
+  if (recActive) stopRec(false);
+});
+document.addEventListener('pointercancel', () => {
+  if (!sendBtnPointerDown) return;
+  sendBtnPointerDown = false;
+  if (recActive) stopRec(true);
 });
 
 /* ===================== VOICE ===================== */
 let recInterval = null, recStart = 0, recActive = false;
-sendBtn.addEventListener('pointerdown', e => {
-  if (inputEl.value.trim()) return;
-  e.preventDefault(); startRec();
-});
-document.addEventListener('pointerup', () => { if (recActive) stopRec(false); });
-document.addEventListener('pointercancel', () => { if (recActive) stopRec(true); });
-function startRec() {
-  recActive = true; recStart = Date.now();
+let mediaRecorder = null, chunks = [], stream = null;
+
+async function startRec() {
+  recActive = true;
+  recStart = Date.now();
+  chunks = [];
   $('#composer').style.display = 'none';
   $('#rec-bar').classList.add('show');
   $('#rec-time').textContent = '0:00';
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+              : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+              : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+              : '';
+    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = ev => { if (ev.data.size > 0) chunks.push(ev.data); };
+    mediaRecorder.start();
+  } catch (err) {
+    toast('دسترسی به میکروفون داده نشد');
+    recActive = false;
+    $('#composer').style.display = 'flex';
+    $('#rec-bar').classList.remove('show');
+    return;
+  }
+
   recInterval = setInterval(() => {
     const s = (Date.now() - recStart) / 1000;
     $('#rec-time').textContent = fmtDur(s);
     if (s > 60) stopRec(false);
   }, 100);
 }
+
 function stopRec(cancel) {
   if (!recActive) return;
   recActive = false;
   clearInterval(recInterval);
   $('#rec-bar').classList.remove('show');
   $('#composer').style.display = 'flex';
+
   const dur = (Date.now() - recStart) / 1000;
-  if (cancel || dur < 0.8) { toast('ضبط لغو شد'); return; }
-  sendMessage({ type: 'voice', dur: Math.round(dur * 10) / 10 }, '');
-  toast('پیام صوتی ارسال شد');
+  const cleanup = () => {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    mediaRecorder = null;
+  };
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      cleanup();
+      if (cancel || dur < 0.8) { toast('ضبط لغو شد'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        sendMessage({
+          type: 'voice',
+          dur: Math.round(dur * 10) / 10,
+          dataUrl: reader.result,
+          size: fmtBytes(blob.size)
+        }, '');
+        toast('پیام صوتی ارسال شد');
+      };
+      reader.readAsDataURL(blob);
+    };
+    try { mediaRecorder.stop(); } catch { cleanup(); }
+  } else {
+    cleanup();
+    if (!cancel && dur >= 0.8) toast('ضبط صدا ممکن نشد');
+  }
 }
 $('#rec-cancel').addEventListener('click', () => stopRec(true));
 
-/* ===================== REPLY ===================== */
+/* ===================== REPLY BAR ===================== */
 function showReplyBar(m) {
   replyToMsg = m.id;
   const chat = getChat(activeChatId);
@@ -1157,25 +1395,78 @@ function showReplyBar(m) {
   $('#reply-bar').classList.add('show');
   inputEl.focus();
 }
-function hideReplyBar() { $('#reply-bar').classList.remove('show'); }
+function hideReplyBar() {
+  replyToMsg = null;
+  $('#reply-bar').classList.remove('show');
+}
+$('#rb-close').addEventListener('click', hideReplyBar);
 
-/* ===================== PLAY ===================== */
+/* ===================== VOICE PLAYBACK ===================== */
+let currentAudio = null;
+let currentAudioBtn = null;
+
 $('#messages').addEventListener('click', e => {
   const btn = e.target.closest('.vplay');
   if (!btn) return;
-  if (btn.dataset.playing === '1') return;
   const msgEl = btn.closest('.msg');
   const id = msgEl.dataset.id;
   const chat = getChat(activeChatId);
   const m = chat.messages.find(x => x.id === id);
   if (!m) return;
+
+  if (currentAudio && currentAudioBtn === btn) {
+    if (currentAudio.paused) {
+      currentAudio.play().catch(() => {});
+      btn.innerHTML = icon('pause', 16);
+      btn.classList.add('playing');
+    } else {
+      currentAudio.pause();
+      btn.innerHTML = icon('play', 16);
+      btn.classList.remove('playing');
+    }
+    return;
+  }
+
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch {}
+    if (currentAudioBtn) {
+      currentAudioBtn.innerHTML = icon('play', 16);
+      currentAudioBtn.classList.remove('playing');
+      const prevMsgEl = currentAudioBtn.closest('.msg');
+      if (prevMsgEl) prevMsgEl.querySelectorAll('.vwave i').forEach(b => b.style.animation = '');
+    }
+  }
+
+  if (m.dataUrl) {
+    currentAudio = new Audio(m.dataUrl);
+    currentAudioBtn = btn;
+    btn.innerHTML = icon('pause', 16);
+    btn.classList.add('playing');
+    const bars = msgEl.querySelectorAll('.vwave i');
+    bars.forEach((b, i) => b.style.animation = `vpulse .45s ${i * 0.04}s infinite alternate`);
+
+    const stopAnim = () => {
+      btn.innerHTML = icon('play', 16);
+      btn.classList.remove('playing');
+      bars.forEach(b => b.style.animation = '');
+      currentAudio = null;
+      currentAudioBtn = null;
+    };
+    currentAudio.onended = stopAnim;
+    currentAudio.onerror = stopAnim;
+    currentAudio.play().catch(stopAnim);
+    return;
+  }
+
   btn.dataset.playing = '1';
   btn.innerHTML = icon('pause', 16);
+  btn.classList.add('playing');
   const bars = msgEl.querySelectorAll('.vwave i');
   bars.forEach((b, i) => b.style.animation = `vpulse .45s ${i * 0.04}s infinite alternate`);
   setTimeout(() => {
     btn.dataset.playing = '0';
     btn.innerHTML = icon('play', 16);
+    btn.classList.remove('playing');
     bars.forEach(b => b.style.animation = '');
   }, (m.dur || 3) * 1000);
 });
@@ -1188,14 +1479,18 @@ $('#messages').addEventListener('pointerdown', e => {
   pressStart = { x: e.clientX, y: e.clientY };
   pressedMsgEl = el;
   pressTimer = setTimeout(() => {
-    if (pressedMsgEl) showMsgMenu(pressedMsgEl);
+    if (pressedMsgEl) {
+      if (navigator.vibrate) navigator.vibrate(15);
+      showMsgMenu(pressedMsgEl);
+    }
     pressTimer = null;
+    pressStart = null;
   }, 450);
 });
 $('#messages').addEventListener('pointermove', e => {
   if (!pressStart) return;
   if (Math.abs(e.clientX - pressStart.x) > 8 || Math.abs(e.clientY - pressStart.y) > 8) {
-    clearTimeout(pressTimer); pressTimer = null;
+    clearTimeout(pressTimer); pressTimer = null; pressStart = null;
   }
 });
 ['pointerup', 'pointercancel'].forEach(ev =>
@@ -1222,12 +1517,30 @@ function showMsgMenu(el) {
   }));
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      resolve();
+    } catch (e) { reject(e); }
+  });
+}
+
 function handleMsgAction(act, chat, m) {
   if (act === 'reply') { showReplyBar(m); return; }
   if (act === 'copy') {
     const t = m.text || '';
-    if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast('کپی شد'), () => toast('کپی نشد'));
-    else toast('پشتیبانی نمی‌شود');
+    copyToClipboard(t).then(() => toast('کپی شد'), () => toast('کپی نشد'));
     return;
   }
   if (act === 'edit') {
@@ -1245,7 +1558,12 @@ function handleMsgAction(act, chat, m) {
         ${avatarHTML(c, 38)}${esc(c.name)}</div>`).join(''));
     $$('#sheet-content [data-fwd]').forEach(b => b.addEventListener('click', () => {
       const target = getChat(b.dataset.fwd);
-      target.messages.push({ id: rid(), text: m.text, out: true, ts: Date.now(), status: 'sent', type: m.type, replyTo: null, dur: m.dur, bg: m.bg, size: m.size });
+      target.messages.push({
+        id: rid(), text: m.text, out: true, ts: Date.now(),
+        status: 'sent', type: m.type, replyTo: null,
+        dur: m.dur, bg: m.bg, size: m.size, dataUrl: m.dataUrl,
+        forwarded: true, originalSender: m.sender || null
+      });
       closeSheet(); renderChatList(); save();
       toast('هدایت شد به ' + target.name);
     }));
@@ -1261,20 +1579,28 @@ function handleMsgAction(act, chat, m) {
 
 /* ===================== LONG PRESS CHAT LIST ===================== */
 let chatPressTimer = null, chatPressStart = null, pressedChatItem = null;
+let chatLongPressFired = false;
+
 $('#chat-list').addEventListener('pointerdown', e => {
   const item = e.target.closest('.chat-item');
   if (!item) return;
   chatPressStart = { x: e.clientX, y: e.clientY };
   pressedChatItem = item;
+  chatLongPressFired = false;
   chatPressTimer = setTimeout(() => {
-    if (pressedChatItem) showChatListMenu(pressedChatItem.dataset.id);
+    if (pressedChatItem) {
+      chatLongPressFired = true;
+      if (navigator.vibrate) navigator.vibrate(20);
+      showChatListMenu(pressedChatItem.dataset.id);
+    }
     chatPressTimer = null;
+    chatPressStart = null;
   }, 450);
 });
 $('#chat-list').addEventListener('pointermove', e => {
   if (!chatPressStart) return;
   if (Math.abs(e.clientX - chatPressStart.x) > 8 || Math.abs(e.clientY - chatPressStart.y) > 8) {
-    clearTimeout(chatPressTimer); chatPressTimer = null;
+    clearTimeout(chatPressTimer); chatPressTimer = null; chatPressStart = null;
   }
 });
 ['pointerup', 'pointercancel'].forEach(ev =>
@@ -1285,7 +1611,6 @@ $('#chat-list').addEventListener('pointermove', e => {
 function showChatListMenu(id) {
   const c = getChat(id);
   if (!c) return;
-  if (navigator.vibrate) navigator.vibrate(20);
 
   let items = '';
   items += `<div class="sheet-item" data-clact="open">${icon('chat-outline')}باز کردن</div>`;
@@ -1337,7 +1662,8 @@ function handleChatListAction(act, c) {
   if (act === 'delete') {
     showConfirm('حذف گفتگو', 'کل این گفتگو حذف شود؟', () => {
       state.chats = state.chats.filter(x => x.id !== c.id);
-      renderChatList(); save();
+      state.contacts = state.contacts.filter(x => x.id !== c.id);
+      renderChatList(); renderContacts(); save();
       toast('حذف شد');
     });
     return;
@@ -1360,20 +1686,7 @@ sheetOverlay.addEventListener('click', e => { if (e.target === sheetOverlay) clo
 /* ===================== AVATAR PICKER ===================== */
 let avatarTarget = null;
 let avatarTargetType = null;
-function openAvatarPicker(targetType, targetId) {
-  avatarTargetType = targetType;
-  avatarTarget = targetId;
-  renderAvatarPicker('gradient');
-  avatarOverlay.classList.add('show');
-}
-function closeAvatarPicker() { avatarOverlay.classList.remove('show'); }
-avatarOverlay.addEventListener('click', e => { if (e.target === avatarOverlay) closeAvatarPicker(); });
-function getAvatarEntity() {
-  if (avatarTargetType === 'me') return state.me;
-  if (avatarTargetType === 'chat') return getChat(avatarTarget);
-  if (avatarTargetType === 'contact') return state.contacts.find(c => c.id === avatarTarget);
-  return null;
-}
+
 function renderAvatarPicker(tab = 'gradient') {
   const entity = getAvatarEntity();
   if (!entity) return;
@@ -1420,6 +1733,12 @@ function renderAvatarPicker(tab = 'gradient') {
   const upBtn = $('#av-upload-btn');
   if (upBtn) upBtn.addEventListener('click', pickImage);
 }
+function getAvatarEntity() {
+  if (avatarTargetType === 'me') return state.me;
+  if (avatarTargetType === 'chat') return getChat(avatarTarget);
+  if (avatarTargetType === 'contact') return state.contacts.find(c => c.id === avatarTarget);
+  return null;
+}
 function pickImage() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
@@ -1461,6 +1780,14 @@ function applyAvatarChange() {
   } else if (avatarTargetType === 'contact') renderContacts();
   toast('ذخیره شد');
 }
+function openAvatarPicker(targetType, targetId) {
+  avatarTargetType = targetType;
+  avatarTarget = targetId;
+  renderAvatarPicker('gradient');
+  avatarOverlay.classList.add('show');
+}
+function closeAvatarPicker() { avatarOverlay.classList.remove('show'); }
+avatarOverlay.addEventListener('click', e => { if (e.target === avatarOverlay) closeAvatarPicker(); });
 
 /* ===================== EMOJI ===================== */
 const EMOJI_CATEGORIES = {
@@ -1521,6 +1848,8 @@ function bindEmojiClicks(scope) {
     b.addEventListener('click', () => {
       inputEl.value += b.dataset.emoji;
       autoGrow(); updateSendBtn();
+      const c = getChat(activeChatId);
+      if (c) { c.draft = inputEl.value; save(); }
     });
   });
 }
@@ -1539,12 +1868,45 @@ $('#btn-attach').addEventListener('click', () => {
     const t = b.dataset.att;
     closeSheet();
     setTimeout(() => {
-      if (t === 'photo') sendMessage({ type: 'photo', text: '', bg: 'linear-gradient(135deg,#667eea,#764ba2)' }, '');
+      if (t === 'photo') pickPhotoForMessage();
       if (t === 'file') sendMessage({ type: 'file', text: 'document.pdf', size: '1.8 MB' }, '');
-      if (t === 'location') sendMessage({ type: 'location', text: 'موقعیت من' }, '');
+      if (t === 'location') {
+        if (!navigator.geolocation) {
+          sendMessage({ type: 'location', text: 'موقعیت من' }, '');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const { latitude, longitude } = pos.coords;
+            sendMessage({
+              type: 'location',
+              text: `موقعیت من\n${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+            }, '');
+          },
+          () => sendMessage({ type: 'location', text: 'موقعیت من' }, ''),
+          { timeout: 5000 }
+        );
+      }
     }, 150);
   }));
 });
+
+function pickPhotoForMessage() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    resizeImage(f, 1080, dataUrl => {
+      sendMessage({
+        type: 'photo',
+        text: '',
+        dataUrl,
+        size: fmtBytes(f.size)
+      }, '');
+    });
+  };
+  inp.click();
+}
 
 /* ===================== CHAT MENU ===================== */
 $('#btn-chat-menu').addEventListener('click', () => {
@@ -1601,7 +1963,8 @@ $('#btn-chat-menu').addEventListener('click', () => {
       if (act === 'delete') {
         showConfirm('حذف گفتگو', 'کل این گفتگو حذف شود؟', () => {
           state.chats = state.chats.filter(x => x.id !== c.id);
-          closeChat(); renderChatList(); save(); toast('حذف شد');
+          state.contacts = state.contacts.filter(x => x.id !== c.id);
+          closeChat(); renderChatList(); renderContacts(); save(); toast('حذف شد');
         });
         return;
       }
@@ -1609,8 +1972,6 @@ $('#btn-chat-menu').addEventListener('click', () => {
     }, 120);
   }));
 });
-
-$('#btn-call').addEventListener('click', () => toast('در نسخه آفلاین پشتیبانی نمی‌شود'));
 
 $('#chat-name').addEventListener('click', () => {
   if (!activeChatId) return;
@@ -1621,93 +1982,137 @@ $('#chat-avatar').addEventListener('click', () => {
   openInfo(activeChatId);
 });
 
-/* ===================== LIST TITLE (پایدار برای انیمیشن) ===================== */
-const TITLE_LOGO_HTML = `<span class="logo-wrap"><span class="logo-text">پیسفون</span></span>`;
+/* ===================== MESSAGE SEARCH ===================== */
+function openMsgSearch() {
+  $('#msg-search-bar').classList.add('show');
+  $('#msg-search-input').value = '';
+  $('#msg-search-count').textContent = '';
+  setTimeout(() => $('#msg-search-input').focus(), 100);
+}
+function closeMsgSearch() {
+  $('#msg-search-bar').classList.remove('show');
+  msgSearchQuery = '';
+  msgSearchHits = [];
+  msgSearchIndex = -1;
+  renderMessages(false);
+}
+$('#btn-search-msg').addEventListener('click', openMsgSearch);
+$('#msg-search-close').addEventListener('click', closeMsgSearch);
 
-function setListTitle(tab) {
-  const el = $('#list-title');
-  if (!el) return;
+let msgSearchTimer = null;
+$('#msg-search-input').addEventListener('input', e => {
+  clearTimeout(msgSearchTimer);
+  msgSearchTimer = setTimeout(() => {
+    msgSearchQuery = e.target.value.trim();
+    const chat = getChat(activeChatId);
+    if (!chat) return;
+    if (msgSearchQuery.length < 2) {
+      msgSearchHits = [];
+      msgSearchIndex = -1;
+      $('#msg-search-count').textContent = '';
+      renderMessages(false);
+      return;
+    }
+    const q = msgSearchQuery.toLowerCase();
+    msgSearchHits = chat.messages
+      .filter(m => m.type === 'text' && m.text && m.text.toLowerCase().includes(q))
+      .map(m => m.id);
+    msgSearchIndex = msgSearchHits.length ? 0 : -1;
+    $('#msg-search-count').textContent = msgSearchHits.length
+      ? `${(msgSearchIndex + 1).toLocaleString('fa-IR')}/${msgSearchHits.length.toLocaleString('fa-IR')}`
+      : 'یافت نشد';
+    renderMessages(false);
+    scrollToHit();
+  }, 250);
+});
+
+function scrollToHit() {
+  if (msgSearchIndex < 0) return;
+  const id = msgSearchHits[msgSearchIndex];
+  const el = document.querySelector(`.msg[data-id="${id}"]`);
+  if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+$('#msg-search-next').addEventListener('click', () => {
+  if (!msgSearchHits.length) return;
+  msgSearchIndex = (msgSearchIndex + 1) % msgSearchHits.length;
+  $('#msg-search-count').textContent = `${(msgSearchIndex + 1).toLocaleString('fa-IR')}/${msgSearchHits.length.toLocaleString('fa-IR')}`;
+  scrollToHit();
+});
+$('#msg-search-prev').addEventListener('click', () => {
+  if (!msgSearchHits.length) return;
+  msgSearchIndex = (msgSearchIndex - 1 + msgSearchHits.length) % msgSearchHits.length;
+  $('#msg-search-count').textContent = `${(msgSearchIndex + 1).toLocaleString('fa-IR')}/${msgSearchHits.length.toLocaleString('fa-IR')}`;
+  scrollToHit();
+});
+
+/* ===================== BOTTOM NAV (Telegram style) ===================== */
+function switchTab(tab) {
+  $$('.tab-body').forEach(t => t.classList.add('hidden'));
+  const target = $('#tab-' + tab);
+  if (target) target.classList.remove('hidden');
+
+  // Update active state in bottom nav
+  $$('.bottom-nav .bnav-item').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+
+  // Search FAB visible only on chats tab
+  const fabSearch = $('#fab-search');
+  if (fabSearch) fabSearch.style.display = (tab === 'chats') ? 'flex' : 'none';
+
+  // Filter tabs only on chats
+  const ftabs = $('#filter-tabs');
+  if (ftabs) ftabs.style.display = (tab === 'chats') ? 'flex' : 'none';
+
+  // Title
+  const titleEl = $('#list-title');
   if (tab === 'chats') {
-    /* اگر عنصر لاگوتکست از قبل هست، دست نزن تا انیمیشن restart نشه */
-    if (!el.querySelector('.logo-text')) {
-      el.innerHTML = TITLE_LOGO_HTML;
+    if (!titleEl.querySelector('.logo-text')) {
+      titleEl.innerHTML = `<span class="logo-wrap"><span class="logo-text">پیسفون</span></span>`;
     }
   } else if (tab === 'contacts') {
-    el.textContent = 'مخاطبین';
-  } else {
-    el.textContent = 'تنظیمات';
+    titleEl.textContent = 'مخاطبین';
+  } else if (tab === 'settings') {
+    titleEl.textContent = 'تنظیمات';
   }
-}
 
-/* ===================== TABS ===================== */
-$$('.tabbar button').forEach(btn => btn.addEventListener('click', () => {
-  $$('.tabbar button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const tab = btn.dataset.tab;
-  $$('.tab-body').forEach(t => t.classList.add('hidden'));
-  $('#tab-' + tab).classList.remove('hidden');
-  $('#fab-new').style.display = tab === 'chats' ? 'flex' : 'none';
-  $('#btn-search-toggle').style.display = tab === 'chats' ? 'flex' : 'none';
-
-  /* ✅ به‌جای textContent از setListTitle استفاده می‌کنیم */
-  setListTitle(tab);
+  // New-chat button only on chats tab
+  const newChatBtn = $('#btn-new-chat');
+  if (newChatBtn) newChatBtn.style.display = (tab === 'chats') ? 'flex' : 'none';
 
   if (tab === 'contacts') renderContacts();
   if (tab === 'settings') renderSettings();
-}));
+  if (tab === 'chats') renderChatList();
+}
 
-/* ===================== SEARCH ===================== */
-$('#btn-search-toggle').addEventListener('click', () => {
+$$('.bottom-nav .bnav-item').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+/* Filter tabs click */
+$$('#filter-tabs .ftab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    chatFilter = btn.dataset.filter;
+    $$('#filter-tabs .ftab').forEach(b =>
+      b.classList.toggle('active', b.dataset.filter === chatFilter));
+    renderChatList();
+  });
+});
+
+/* Search FAB click */
+$('#fab-search').addEventListener('click', () => {
   const sb = $('#searchbar');
   const open = sb.style.display === 'none';
   sb.style.display = open ? 'block' : 'none';
   if (open) $('#search-input').focus();
   else { $('#search-input').value = ''; renderChatList(); }
 });
-$('#search-input').addEventListener('input', renderChatList);
 
-/* ===================== NAV ===================== */
-$('#btn-back').addEventListener('click', closeChat);
+/* Header menu button (top-left) */
 $('#btn-menu-list').addEventListener('click', () => toast('به‌زودی…'));
 
-$('#chat-list').addEventListener('click', e => {
-  const item = e.target.closest('.chat-item');
-  if (item) openChat(item.dataset.id);
-});
-
-$('#contacts-list').addEventListener('click', e => {
-  const item = e.target.closest('[data-contact]');
-  if (!item) return;
-  const c = state.contacts.find(x => x.id === item.dataset.contact);
-  if (!c) return;
-  let chat = state.chats.find(x => x.id === c.id);
-  if (!chat) {
-    chat = {
-      id: c.id, name: c.name, type: 'private',
-      avatar: c.avatar, verified: c.verified,
-      username: '', online: Math.random() > .5,
-      unread: 0, pinned: false, muted: false, messages: [], createdAt: Date.now()
-    };
-    state.chats.push(chat); save();
-  }
-  openChat(chat.id);
-});
-
-$('#btn-info-back').addEventListener('click', () => {
-  closeInfo();
-  renderChatList();
-});
-$('#btn-info-edit').addEventListener('click', () => {
-  const c = getChat(infoChatId);
-  if (!c) return;
-  avatarTargetType = 'chat';
-  avatarTarget = c.id;
-  renderAvatarPicker('gradient');
-  avatarOverlay.classList.add('show');
-});
-
-/* ===================== NEW CHAT ===================== */
-$('#fab-new').addEventListener('click', () => {
+/* Header + new chat button (top-right) */
+$('#btn-new-chat').addEventListener('click', () => {
   openSheet(`
     <div class="sheet-title">گفتگوی جدید</div>
     <div class="sheet-item" data-nt="private">${icon('user')}گفتگوی شخصی</div>
@@ -1722,6 +2127,75 @@ $('#fab-new').addEventListener('click', () => {
   }));
 });
 
+/* Search input debounce */
+$('#search-input').addEventListener('input', () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(renderChatList, 120);
+});
+$('#search-clear').addEventListener('click', () => {
+  $('#search-input').value = '';
+  renderChatList();
+  $('#search-input').focus();
+});
+
+/* Chat list click (with long-press aware) */
+$('#chat-list').addEventListener('click', e => {
+  if (chatLongPressFired) { chatLongPressFired = false; return; }
+
+  const msgResult = e.target.closest('.msg-search-result');
+  if (msgResult) {
+    const chatId = msgResult.dataset.resultChat;
+    const msgId = msgResult.dataset.resultMsg;
+    $('#search-input').value = '';
+    $('#searchbar').style.display = 'none';
+    renderChatList();
+    openChat(chatId);
+    setTimeout(() => {
+      const el = document.querySelector(`.msg[data-id="${msgId}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.classList.add('selected');
+        setTimeout(() => el.classList.remove('selected'), 900);
+      }
+    }, 250);
+    return;
+  }
+
+  const item = e.target.closest('.chat-item');
+  if (item && item.dataset.id) openChat(item.dataset.id);
+});
+
+$('#contacts-list').addEventListener('click', e => {
+  const item = e.target.closest('[data-contact]');
+  if (!item) return;
+  const c = state.contacts.find(x => x.id === item.dataset.contact);
+  if (!c) return;
+  let chat = state.chats.find(x => x.id === c.id);
+  if (!chat) {
+    chat = {
+      id: c.id, name: c.name, type: 'private',
+      avatar: c.avatar, verified: c.verified,
+      username: '', online: Math.random() > .5,
+      unread: 0, pinned: false, muted: false,
+      draft: '', messages: [], createdAt: Date.now()
+    };
+    state.chats.push(chat); save();
+  }
+  openChat(chat.id);
+});
+
+$('#btn-back').addEventListener('click', closeChat);
+$('#btn-info-back').addEventListener('click', () => { closeInfo(); renderChatList(); });
+$('#btn-info-edit').addEventListener('click', () => {
+  const c = getChat(infoChatId);
+  if (!c) return;
+  avatarTargetType = 'chat';
+  avatarTarget = c.id;
+  renderAvatarPicker('gradient');
+  avatarOverlay.classList.add('show');
+});
+
+/* ===================== NEW CHAT PROMPTS ===================== */
 function promptChatName(type) {
   const titles = { private: 'نام مخاطب', group: 'نام گروه', channel: 'نام کانال', saved: null };
   if (type === 'saved') {
@@ -1809,7 +2283,7 @@ function finishCreateChat(data, type) {
 function createChat(data) {
   const chat = Object.assign({
     id: rid(), unread: 0, pinned: false, muted: false,
-    messages: [], createdAt: Date.now()
+    draft: '', messages: [], createdAt: Date.now()
   }, data);
   state.chats.push(chat);
   save(); renderChatList();
@@ -1817,7 +2291,7 @@ function createChat(data) {
   setTimeout(() => openChat(chat.id), 200);
 }
 
-/* ===================== SETTINGS ===================== */
+/* ===================== SETTINGS ACTIONS ===================== */
 $('#settings-body').addEventListener('click', e => {
   const row = e.target.closest('[data-act]');
   if (row) {
@@ -1842,6 +2316,12 @@ $('#settings-body').addEventListener('click', e => {
         renderSettings(); save(); toast('ذخیره شد');
       }, { ltr: true, placeholder: '+98 912 345 6789' });
     }
+    if (act === 'toggle-theme') {
+      state.theme = state.theme === 'light' ? 'dark' : 'light';
+      applyTheme();
+      renderSettings(); save();
+      toast(state.theme === 'light' ? 'تم روشن فعال شد' : 'تم تاریک فعال شد');
+    }
     if (act === 'export') {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
@@ -1860,7 +2340,13 @@ $('#settings-body').addEventListener('click', e => {
           try {
             const data = JSON.parse(r.result);
             if (!data || !Array.isArray(data.chats)) throw 0;
+            closeChat(); closeInfo();
             state = data;
+            if (!state.settings) state.settings = defaultState().settings;
+            if (!state.me) state.me = defaultState().me;
+            if (!Array.isArray(state.contacts)) state.contacts = [];
+            if (!state.theme) state.theme = 'dark';
+            applyTheme();
             renderChatList(); renderContacts(); renderSettings(); save();
             toast('بازیابی شد');
           } catch { toast('فایل نامعتبر'); }
@@ -1873,6 +2359,7 @@ $('#settings-body').addEventListener('click', e => {
       showConfirm('پاک کردن همه داده‌ها', 'تمام گفتگوها و تنظیمات حذف شوند؟', () => {
         localStorage.removeItem(KEY);
         state = defaultState();
+        applyTheme();
         renderChatList(); renderSettings(); renderContacts();
         toast('پاک شد');
       });
@@ -1890,6 +2377,16 @@ $('#settings-body').addEventListener('click', e => {
     if (key === 'aiMode') {
       toast(sw.checked ? 'پاسخ هوشمند فعال شد ✨' : 'پاسخ هوشمند غیرفعال شد');
       if (activeChatId) renderChatHeader();
+    }
+    if (key === 'notifications' && sw.checked) {
+      requestNotifPermission().then(() => {
+        if (Notification.permission === 'granted') toast('نوتیفیکیشن فعال شد');
+        else if (Notification.permission === 'denied') {
+          toast('مرورگر اجازه نداد');
+          state.settings.notifications = false;
+          renderSettings(); save();
+        }
+      });
     }
   }
   const meSw = e.target.closest('input[data-me]');
@@ -1978,14 +2475,42 @@ function checkVersionAndNotify() {
   }
 }
 
+/* ===================== SCROLL BOTTOM ===================== */
+const messagesBox = $('#messages');
+const scrollBottomBtn = $('#btn-scroll-bottom');
+const scrollUnread = $('#scroll-unread');
+let unreadWhileScrolled = 0;
+
+function updateScrollBottomBtn() {
+  const atBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 80;
+  if (atBottom) {
+    scrollBottomBtn.style.display = 'none';
+    unreadWhileScrolled = 0;
+    scrollUnread.style.display = 'none';
+    scrollUnread.textContent = '0';
+  } else {
+    scrollBottomBtn.style.display = 'flex';
+  }
+}
+messagesBox.addEventListener('scroll', updateScrollBottomBtn);
+scrollBottomBtn.addEventListener('click', () => {
+  messagesBox.scrollTo({ top: messagesBox.scrollHeight, behavior: 'smooth' });
+  unreadWhileScrolled = 0;
+  scrollUnread.style.display = 'none';
+});
+
 /* ===================== INIT ===================== */
 state.chats.forEach(c => c.messages.forEach(m => renderedMsgIds.add(m.id)));
 
 renderChatList();
 renderContacts();
 renderSettings();
+switchTab('chats');
 
 checkVersionAndNotify();
+requestNotifPermission();
+
+setInterval(pruneRenderedIds, 60000);
 
 window.addEventListener('online', () => {
   if (activeChatId) renderChatHeader();
