@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v1.15
+   پیسفون v1.16
    ========================================================= */
 
 :root{
@@ -35,6 +35,8 @@
   --sh-2: 0 4px 12px rgba(0,0,0,.35);
   --sh-3: 0 8px 24px rgba(0,0,0,.45);
   --sh-4: 0 16px 48px rgba(0,0,0,.55);
+
+  --nav-h: 60px;
 }
 
 html[data-theme="light"]{
@@ -243,49 +245,12 @@ html[data-theme="light"] .hdr{background:rgba(242,242,247,.9)}
   flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
   display:flex;flex-direction:column;
-  padding:0 8px calc(110px + env(safe-area-inset-bottom, 0px));
+  padding:0 8px calc(var(--nav-h) + 30px + env(safe-area-inset-bottom, 0px));
   overscroll-behavior:contain;
 }
 .tab-body.hidden{display:none}
 
-/* ============================================================
-   Filter tabs (Telegram style horizontal pills)
-   ============================================================ */
-.filter-tabs{
-  display:flex;
-  gap:6px;
-  padding:10px 6px 12px;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:none;
-  flex-shrink:0;
-}
-.filter-tabs::-webkit-scrollbar{display:none}
-
-.ftab{
-  flex-shrink:0;
-  padding:8px 16px;
-  border-radius:var(--r-pill);
-  font-size:14px;
-  font-weight:600;
-  color:var(--text-2);
-  background:rgba(255,255,255,.06);
-  border:1px solid transparent;
-  white-space:nowrap;
-  transition:all .2s ease;
-  cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-html[data-theme="light"] .ftab{background:rgba(0,0,0,.05)}
-.ftab:active{transform:scale(.95)}
-.ftab.active{
-  color:#fff;
-  background:linear-gradient(180deg,#60a5fa,#3b82f6);
-  box-shadow:0 4px 14px rgba(59,130,246,.45),inset 0 1px 0 rgba(255,255,255,.25);
-  border-color:rgba(255,255,255,.15);
-}
-
-.searchbar{padding:4px 6px 12px;flex-shrink:0;position:relative}
+.searchbar{padding:10px 6px 12px;flex-shrink:0;position:relative}
 .searchbar input{
   width:100%;border:1px solid var(--line-2);outline:none;
   background:var(--surface-2);
@@ -301,7 +266,7 @@ html[data-theme="light"] .ftab{background:rgba(0,0,0,.05)}
 .searchbar input::placeholder{color:var(--text-3)}
 .search-clear{
   position:absolute;
-  left:12px;top:50%;
+  left:18px;top:50%;
   transform:translateY(-50%);
   width:26px;height:26px;border-radius:50%;
   background:rgba(255,255,255,.1);
@@ -313,6 +278,62 @@ html[data-theme="light"] .ftab{background:rgba(0,0,0,.05)}
 .search-clear:active{transform:translateY(-50%) scale(.9)}
 
 .list{flex:1;padding-bottom:20px;padding-top:4px}
+
+/* ============================================================
+   TOP NAV — دقیقاً هم‌ظاهر با منوی پایین
+   ============================================================ */
+.top-nav{
+  display:flex;
+  align-items:center;
+  gap:2px;
+  padding:6px 6px;
+  background:rgba(20,20,22,.92);
+  backdrop-filter:blur(30px) saturate(180%);
+  -webkit-backdrop-filter:blur(30px) saturate(180%);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.45),
+    0 2px 8px rgba(0,0,0,.3),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  margin:0 6px 14px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  flex-shrink:0;
+}
+.top-nav::-webkit-scrollbar{display:none}
+html[data-theme="light"] .top-nav{
+  background:rgba(255,255,255,.92);
+  border-color:rgba(0,0,0,.08);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.1),
+    0 2px 8px rgba(0,0,0,.05),
+    inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.tnav-item{
+  flex-shrink:0;
+  padding:9px 16px;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:600;
+  color:var(--text-3);
+  background:transparent;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:all .22s ease;
+  letter-spacing:-.1px;
+}
+.tnav-item:active{transform:scale(.95)}
+.tnav-item.active{
+  color:#fff;
+  background:linear-gradient(180deg,#60a5fa,#3b82f6);
+  box-shadow:
+    0 4px 14px rgba(59,130,246,.5),
+    inset 0 1px 0 rgba(255,255,255,.28);
+}
+html[data-theme="light"] .tnav-item.active{color:#fff}
 
 /* ===== CHAT ITEM ===== */
 .chat-item{
@@ -408,52 +429,45 @@ html[data-theme="light"] .ftab{background:rgba(0,0,0,.05)}
 }
 
 /* ============================================================
-   Bottom navigation — Telegram-style floating pill bar
+   BOTTOM NAV — چسبیده به لبه پایین صفحه
    ============================================================ */
 .bottom-nav{
   position:fixed;
-  bottom:calc(14px + env(safe-area-inset-bottom, 0px));
-  left:50%;
-  transform:translateX(-50%);
+  bottom:0;
+  left:0;
+  right:0;
   display:flex;
-  align-items:center;
+  align-items:stretch;
   justify-content:space-around;
-  gap:2px;
-  padding:6px 8px;
-  background:rgba(20,20,22,.92);
+  gap:0;
+  padding:6px 4px 4px;
+  padding-bottom:calc(4px + env(safe-area-inset-bottom, 0px));
+  background:rgba(20,20,22,.97);
   backdrop-filter:blur(30px) saturate(180%);
   -webkit-backdrop-filter:blur(30px) saturate(180%);
-  border:1px solid rgba(255,255,255,.09);
-  border-radius:28px;
-  box-shadow:
-    0 12px 40px rgba(0,0,0,.6),
-    0 4px 12px rgba(0,0,0,.4),
-    inset 0 1px 0 rgba(255,255,255,.06);
+  border-top:1px solid rgba(255,255,255,.08);
+  border-radius:0;
+  box-shadow:0 -6px 24px rgba(0,0,0,.5);
   z-index:7;
-  min-width:280px;
-  max-width:calc(100vw - 32px);
-  transition:background .3s, border-color .3s;
+  transition:background .3s, border-color .3s, transform .28s;
+  min-height:56px;
 }
 html[data-theme="light"] .bottom-nav{
-  background:rgba(255,255,255,.92);
-  border-color:rgba(0,0,0,.08);
-  box-shadow:
-    0 12px 40px rgba(0,0,0,.15),
-    0 4px 12px rgba(0,0,0,.08),
-    inset 0 1px 0 rgba(255,255,255,.9);
+  background:rgba(255,255,255,.97);
+  border-top-color:rgba(0,0,0,.08);
+  box-shadow:0 -6px 24px rgba(0,0,0,.06);
 }
 
 .bnav-item{
   position:relative;
   flex:1;
-  min-width:74px;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   gap:3px;
-  padding:8px 6px 6px;
-  border-radius:22px;
+  padding:6px 4px 4px;
+  border-radius:14px;
   color:var(--text-3);
   font-size:10.5px;
   font-weight:600;
@@ -472,20 +486,15 @@ html[data-theme="light"] .bottom-nav{
 .bnav-item .bnav-icon{
   position:relative;
   display:flex;align-items:center;justify-content:center;
-  width:44px;height:30px;
+  width:46px;height:30px;
   border-radius:15px;
   transition:background .25s ease, box-shadow .25s ease;
 }
-.bnav-item .bnav-label{
-  display:block;
-  transition:color .22s;
-}
+.bnav-item .bnav-label{display:block;transition:color .22s;}
 
 .bnav-item:active .bnav-icon{transform:scale(.9)}
 
-.bnav-item.active{
-  color:var(--accent-2);
-}
+.bnav-item.active{color:var(--accent-2);}
 .bnav-item.active svg{
   filter:drop-shadow(0 2px 8px rgba(59,130,246,.75));
   transform:scale(1.06);
@@ -511,28 +520,14 @@ html[data-theme="light"] .bnav-item.active .bnav-icon{
 }
 
 /* ============================================================
-   Floating search FAB
+   HIDE NAV BARS WHEN IN CHAT / INFO SCREEN
    ============================================================ */
-.fab-search{
-  position:fixed;
-  right:18px;
-  bottom:calc(20px + env(safe-area-inset-bottom, 0px));
-  width:56px;height:56px;
-  border-radius:50%;
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,.4) 0%, transparent 45%),
-    linear-gradient(180deg,#60a5fa,#3b82f6);
-  color:#fff;
-  box-shadow:
-    0 12px 30px rgba(59,130,246,.55),
-    0 4px 12px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.4);
-  z-index:7;
-  border:1px solid rgba(255,255,255,.18);
-  transition:transform .15s, box-shadow .25s;
+body.in-chat .bottom-nav,
+body.in-info .bottom-nav {
+  transform: translateY(120%);
+  opacity:0;
+  pointer-events:none;
 }
-.fab-search svg{fill:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
-.fab-search:active{transform:scale(.9)}
 
 /* ===== MESSAGES ===== */
 #messages{
@@ -890,7 +885,7 @@ html[data-theme="light"] .profile-card{background:linear-gradient(135deg,rgba(25
 .switch input:checked + .sl:before{transform:translateX(-20px)}
 .switch.purple input:checked + .sl{background:linear-gradient(180deg,#a78bfa,#8b5cf6)}
 
-#toast{position:fixed;bottom:calc(110px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(20px);background:rgba(30,30,32,.96);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--line-2);color:#fff;padding:12px 22px;border-radius:var(--r-pill);font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.3s cubic-bezier(.32,.72,0,1);white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-weight:600;box-shadow:var(--sh-3);}
+#toast{position:fixed;bottom:calc(var(--nav-h) + 30px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(20px);background:rgba(30,30,32,.96);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--line-2);color:#fff;padding:12px 22px;border-radius:var(--r-pill);font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.3s cubic-bezier(.32,.72,0,1);white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-weight:600;box-shadow:var(--sh-3);}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 .empty{text-align:center;color:var(--text-3);font-size:13.5px;padding:60px 40px;line-height:1.8;}
@@ -930,11 +925,9 @@ html[data-theme="light"] .info-hero{background:linear-gradient(135deg,rgba(255,2
 /* Landscape */
 @media (orientation: landscape) and (max-height: 500px) {
   .hdr { min-height: 44px; padding-top: max(env(safe-area-inset-top, 0px), 4px); padding-bottom: 4px; }
-  .bottom-nav { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding: 4px 6px; }
-  .bnav-item { min-width: 64px; padding: 5px 4px 4px; }
+  .bottom-nav { padding: 4px 4px 2px; min-height:48px; }
   .bnav-item svg { width: 22px; height: 22px; }
-  .bnav-item .bnav-icon { width: 38px; height: 26px; }
-  .fab-search { width: 50px; height: 50px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .bnav-item .bnav-icon { width: 40px; height: 26px; }
 }
 
 @media (max-width: 1024px) {
