@@ -1,4 +1,4 @@
-const CACHE = 'pisfon-v33';
+const CACHE = 'pisfon-v34';
 const ASSETS = [
   './',
   './index.html',
