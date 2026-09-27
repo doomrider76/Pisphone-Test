@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v1.15
+   پیسفون v1.16
    ========================================================= */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -84,17 +84,17 @@ document.addEventListener('contextmenu', e => {
 });
 
 /* ===================== VERSION ===================== */
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 const VERSION_KEY = 'pisfon_version';
 const CHANGELOG = [
-  'نوار پایین شبیه تلگرام (شناور و گرد)',
-  'تب‌های فیلتر افقی بالای لیست',
-  'فیلتر: همه / خصوصی / گروه / کانال / AI / ذخیره‌شده',
-  'دکمه شناور جستجو سمت راست',
+  'تب‌بار کلن حذف شد',
+  'منوی پایین چسبیده به لبه پایین صفحه',
+  'منوی فیلتر بالا هم‌ظاهر منوی پایین',
+  'منوهای بالاوپایین توی صفحه چت پنهان می‌شوند',
+  'جستجو در هدر بالا',
   'همه باگ‌های قبلی فیکس',
   'پیام صوتی و عکس واقعی',
-  'نوتیفیکیشن مرورگر',
-  'تم روشن و تاریک'
+  'نوتیفیکیشن مرورگر'
 ];
 
 const renderedMsgIds = new Set();
@@ -868,6 +868,7 @@ function openChat(id) {
   replyToMsg = null;
   hideReplyBar();
   closeMsgSearch();
+  document.body.classList.add('in-chat');
   renderChatHeader();
   renderMessages();
   renderChatList();
@@ -881,6 +882,7 @@ function openChat(id) {
 function closeChat() {
   const c = getChat(activeChatId);
   if (c) c.draft = $('#msg-input').value || '';
+  document.body.classList.remove('in-chat');
   $('#screen-chat').classList.remove('open');
   activeChatId = null;
   replyToMsg = null;
@@ -896,10 +898,12 @@ function openInfo(id) {
   const c = getChat(id);
   if (!c) return;
   infoChatId = id;
+  document.body.classList.add('in-info');
   renderInfo();
   $('#screen-info').classList.add('open');
 }
 function closeInfo() {
+  document.body.classList.remove('in-info');
   $('#screen-info').classList.remove('open');
   infoChatId = null;
 }
@@ -2051,20 +2055,20 @@ function switchTab(tab) {
   const target = $('#tab-' + tab);
   if (target) target.classList.remove('hidden');
 
-  // Update active state in bottom nav
+  /* Bottom nav active state */
   $$('.bottom-nav .bnav-item').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
 
-  // Search FAB visible only on chats tab
-  const fabSearch = $('#fab-search');
-  if (fabSearch) fabSearch.style.display = (tab === 'chats') ? 'flex' : 'none';
+  /* Top filter nav only on chats tab */
+  const tnav = $('#top-nav');
+  if (tnav) tnav.style.display = (tab === 'chats') ? 'flex' : 'none';
 
-  // Filter tabs only on chats
-  const ftabs = $('#filter-tabs');
-  if (ftabs) ftabs.style.display = (tab === 'chats') ? 'flex' : 'none';
+  /* New-chat button only on chats tab */
+  const newChatBtn = $('#btn-new-chat');
+  if (newChatBtn) newChatBtn.style.display = (tab === 'chats') ? 'flex' : 'none';
 
-  // Title
+  /* Title */
   const titleEl = $('#list-title');
   if (tab === 'chats') {
     if (!titleEl.querySelector('.logo-text')) {
@@ -2076,10 +2080,6 @@ function switchTab(tab) {
     titleEl.textContent = 'تنظیمات';
   }
 
-  // New-chat button only on chats tab
-  const newChatBtn = $('#btn-new-chat');
-  if (newChatBtn) newChatBtn.style.display = (tab === 'chats') ? 'flex' : 'none';
-
   if (tab === 'contacts') renderContacts();
   if (tab === 'settings') renderSettings();
   if (tab === 'chats') renderChatList();
@@ -2089,18 +2089,21 @@ $$('.bottom-nav .bnav-item').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-/* Filter tabs click */
-$$('#filter-tabs .ftab').forEach(btn => {
+/* Top filter nav click */
+$$('#top-nav .tnav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     chatFilter = btn.dataset.filter;
-    $$('#filter-tabs .ftab').forEach(b =>
+    $$('#top-nav .tnav-item').forEach(b =>
       b.classList.toggle('active', b.dataset.filter === chatFilter));
     renderChatList();
   });
 });
 
-/* Search FAB click */
-$('#fab-search').addEventListener('click', () => {
+/* Header menu button (top-left) */
+$('#btn-menu-list').addEventListener('click', () => toast('به‌زودی…'));
+
+/* Header search button (top-right) */
+$('#btn-search-toggle').addEventListener('click', () => {
   const sb = $('#searchbar');
   const open = sb.style.display === 'none';
   sb.style.display = open ? 'block' : 'none';
@@ -2108,10 +2111,7 @@ $('#fab-search').addEventListener('click', () => {
   else { $('#search-input').value = ''; renderChatList(); }
 });
 
-/* Header menu button (top-left) */
-$('#btn-menu-list').addEventListener('click', () => toast('به‌زودی…'));
-
-/* Header + new chat button (top-right) */
+/* Header new chat button (top-right) */
 $('#btn-new-chat').addEventListener('click', () => {
   openSheet(`
     <div class="sheet-title">گفتگوی جدید</div>
