@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v10.20
+   پیسفون v10.21
    ========================================================= */
 
 :root{
@@ -113,8 +113,7 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
   box-shadow:var(--sh-4),inset 0 1px 0 rgba(255,255,255,.08);
   transform:scale(.88) translateY(20px);opacity:0;
   transition:transform .45s cubic-bezier(.34,1.56,.64,1), opacity .3s;
-  max-height:90vh;
-  overflow-y:auto;
+  max-height:90vh;overflow-y:auto;
 }
 .update-overlay.show .update-box{transform:scale(1) translateY(0);opacity:1}
 .update-icon{
@@ -198,6 +197,12 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
   z-index:20;
 }
 #screen-info.open{transform:translateX(0)}
+#screen-profile{
+  transform:translateX(-100%);
+  transition:transform .38s cubic-bezier(.32,.72,0,1);
+  z-index:30;
+}
+#screen-profile.open{transform:translateX(0)}
 
 /* ===== HEADER ===== */
 .hdr{
@@ -412,16 +417,12 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
    ============================================================ */
 .bottom-nav{
   position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
+  bottom:0;left:0;right:0;
   display:flex;
   align-items:stretch;
   justify-content:space-around;
   gap:0;
-  margin:0;
-  border-radius:0;
-  border:none;
+  margin:0;border-radius:0;border:none;
   border-top:1px solid rgba(255,255,255,.08);
   background:var(--bg);
   box-shadow:none;
@@ -429,7 +430,6 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
   z-index:7;
   transition:background .3s, transform .28s;
 }
-
 html[data-theme="light"] .bottom-nav{
   border-top-color:rgba(0,0,0,.08);
 }
@@ -467,9 +467,7 @@ html[data-theme="light"] .bottom-nav{
   transition:background .25s ease, box-shadow .25s ease;
 }
 .bnav-item .bnav-label{display:block;transition:color .22s;}
-
 .bnav-item:active .bnav-icon{transform:scale(.9)}
-
 .bnav-item.active{color:var(--accent-2);}
 .bnav-item.active svg{
   filter:drop-shadow(0 2px 8px rgba(59,130,246,.75));
@@ -494,7 +492,8 @@ html[data-theme="light"] .bnav-item.active .bnav-icon{
 }
 
 body.in-chat .bottom-nav,
-body.in-info .bottom-nav {
+body.in-info .bottom-nav,
+body.in-profile .bottom-nav {
   transform: translateY(120%);
   opacity:0;
   pointer-events:none;
@@ -747,21 +746,28 @@ html[data-theme="light"] .day-sep span{
 .reaction-picker button:active{transform:scale(.8);background:rgba(255,255,255,.1)}
 
 /* ============================================================
-   SEEN COUNTER (CHANNEL)
+   SEEN COUNTER (CHANNEL) — کنار ساعت و تیک
    ============================================================ */
 .msg-seen{
   display:inline-flex;
   align-items:center;
-  gap:4px;
+  gap:3px;
   font-size:11px;
   color:rgba(255,255,255,.55);
-  margin-right:auto;
-  margin-left:0;
   font-variant-numeric:tabular-nums;
   font-weight:500;
+  opacity:.9;
+  transition:all .3s ease;
 }
-.msg-seen svg{width:13px;height:13px;fill:currentColor;opacity:.75}
-.msg.out .msg-seen{color:rgba(255,255,255,.6)}
+.msg-seen svg{
+  width:13px;
+  height:13px;
+  fill:none;
+  stroke:currentColor;
+  opacity:.8;
+}
+.msg.out .msg-seen{color:rgba(255,255,255,.65)}
+html[data-theme="light"] .msg.out .msg-seen{color:rgba(0,0,0,.55)}
 
 /* ============================================================
    LINK PREVIEW
@@ -808,6 +814,71 @@ html[data-theme="light"] .day-sep span{
   text-overflow:ellipsis;
   direction:ltr;
   text-align:left;
+}
+
+/* ============================================================
+   MENTION LINK + PREVIEW
+   ============================================================ */
+.mention-link{
+  color:var(--accent-2);
+  text-decoration:none;
+  font-weight:600;
+  cursor:pointer;
+}
+.mention-link:active{opacity:.7;}
+.msg.out .mention-link{color:#bbf7d0;}
+
+.mention-preview{
+  display:block;
+  margin-top:6px;
+  padding:8px 10px;
+  background:rgba(59,130,246,.08);
+  border:1px solid rgba(59,130,246,.22);
+  border-radius:12px;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  transition:background .15s;
+}
+.mention-preview:active{background:rgba(59,130,246,.18);}
+.mention-preview .mp-header{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:3px;
+}
+.mention-preview .mp-avatar{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:700;
+  color:#fff;
+  flex-shrink:0;
+}
+.mention-preview .mp-name{
+  font-size:13px;
+  font-weight:700;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.mention-preview .mp-name .vf{width:13px;height:13px;}
+.mention-preview .mp-sub{
+  font-size:11.5px;
+  color:var(--text-3);
+}
+.msg.out .mention-preview{
+  background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.14);
+}
+html[data-theme="light"] .mention-preview{
+  background:rgba(59,130,246,.08);
+  border-color:rgba(59,130,246,.2);
 }
 
 /* ============================================================
@@ -1071,7 +1142,7 @@ html[data-theme="light"] .info-hero{background:linear-gradient(135deg,rgba(255,2
 .info-stat.editable::after{content:" ✎";opacity:.45;font-size:12px}
 
 /* ============================================================
-   INFO COVER PHOTO (GROUP)
+   INFO COVER PHOTO
    ============================================================ */
 .info-cover{
   width:100%;
@@ -1108,6 +1179,123 @@ html[data-theme="light"] .info-hero{background:linear-gradient(135deg,rgba(255,2
   z-index:2;
   position:relative;
 }
+
+/* ============================================================
+   PROFILE PREVIEW SCREEN
+   ============================================================ */
+.profile-preview-hero{
+  position: relative;
+  margin: 0 0 20px;
+}
+.profile-cover{
+  width: 100%;
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  position: relative;
+}
+.profile-cover::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,.85) 100%);
+}
+.profile-cover.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.profile-cover.empty::after{ display: none; }
+.profile-avatar-wrap{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 22px;
+  margin-top: -50px;
+  position: relative;
+  z-index: 2;
+}
+.profile-avatar-wrap .avatar{
+  width: 100px;
+  height: 100px;
+  font-size: 40px;
+  border: 4px solid var(--bg);
+  box-shadow: 0 10px 30px rgba(0,0,0,.55);
+}
+.profile-name{
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  letter-spacing: -.4px;
+}
+.profile-name .vf{ width: 22px; height: 22px; }
+.profile-username{
+  font-size: 14px;
+  color: var(--accent-2);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.profile-badge-row{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+.profile-stat-row{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.profile-desc{
+  margin: 18px 14px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-2);
+  text-align: center;
+}
+.profile-actions{
+  display: flex;
+  gap: 10px;
+  padding: 0 14px 30px;
+}
+.profile-actions button{
+  flex: 1;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.profile-actions .btn-join{
+  background: linear-gradient(180deg, #60a5fa, #3b82f6);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(59,130,246,.45);
+}
+.profile-actions .btn-leave{
+  background: rgba(239,68,68,.14);
+  color: var(--red);
+  border: 1px solid rgba(239,68,68,.35);
+}
+.profile-actions button:active{ transform: scale(.97); }
+.profile-actions button svg{ fill: currentColor; }
 
 /* ============================================================
    BACKUP WELCOME
