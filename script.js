@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v1.24
+   پیسفون v10.21 — بدون دیفالت
    ========================================================= */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -59,24 +59,20 @@ document.addEventListener('contextmenu', e => {
 });
 
 /* ===================== VERSION ===================== */
-const APP_VERSION = '1.20';
+const APP_VERSION = '10.21';
 const VERSION_KEY = 'pisfon_version';
 const CHANGELOG = [
-  'مدیریت گروه: افزودن و حذف عضو توسط ادمین',
-  'ارتقا اعضا به مدیر + نشان ADMIN',
-  'توضیحات و کاور اختصاصی برای گروه و کانال',
-  'مجوزها: کنترل اینکه کی می‌تونه پیام بفرسته یا اطلاعات رو تغییر بده',
-  'حذف برای همه — پیام از دید همه مخاطبین پاک می‌شه',
-  'ویرایش برای همه — تغییر پیام برای همه اعضا',
-  'ری‌اکشن با ایموجی روی پیام‌ها',
-  'دابل‌تپ روی پیام برای لایک سریع ❤️',
-  'پیش‌نمایش خودکار لینک‌ها',
-  'ذخیره در پیام‌های ذخیره‌شده از هر چتی',
-  'نمایش تعداد سین های هر کانال',
-  'تنظیم آیدی شخصی برای خود',
-  'پشتیبان‌گیری خودکار + بازیابی پس از نصب مجدد',
-  'صفحه‌ی خوش‌آمد با امکان بازیابی از فایل پشتیبان',
-  'یادآور پشتیبان‌گیری هر ۳ روز یکبار'
+  'بدون هیچ داده اولیه — شروع تمیز',
+  'پیام‌های ذخیره‌شده دیگه تکراری ساخته نمی‌شه',
+  'شمارنده سین تدریجی بر اساس تعداد اعضای کانال',
+  'آیدی فقط انگلیسی + عدد + _ - = + (شروع با حرف یا عدد)',
+  'آیدی نباید تکراری باشه',
+  'پیش‌نمایش پروفایل با کلیک روی @آیدی',
+  'دکمه Join / Leave برای کانال و گروه',
+  'پس از rejoin پیام‌ها برمی‌گرده',
+  'پیش‌نمایش @username داخل پیام‌ها',
+  'پشتیبان‌گیری خودکار + بازیابی',
+  'آیکون چشم برای شمارنده سین، کنار ساعت و تیک'
 ];
 
 const renderedMsgIds = new Set();
@@ -145,76 +141,61 @@ async function fetchAIReply(userMessage, history = [], systemPrompt = null) {
   } catch { return null; }
 }
 
-/* ===================== STATE ===================== */
-function defaultState() {
-  const now = Date.now();
+/* ===================== USERNAME HELPERS ===================== */
+function isValidUsername(u) {
+  if (!u || typeof u !== 'string') return false;
+  if (u.length < 3 || u.length > 32) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9_\-=+]*$/.test(u);
+}
+function normalizeUsername(u) {
+  return String(u || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+function isUsernameTaken(u, excludeKind = null, excludeId = null) {
+  if (!u) return false;
+  const low = normalizeUsername(u);
+  if (!low) return false;
+  if (excludeKind !== 'me' && state.me?.username && normalizeUsername(state.me.username) === low) return true;
+  if (state.chats.some(c => c.id !== excludeId && c.username && normalizeUsername(c.username) === low)) return true;
+  if ((state.directory || []).some(d => d.username && normalizeUsername(d.username) === low)) return true;
+  return false;
+}
+function findEntityByUsername(u) {
+  if (!u) return null;
+  const low = normalizeUsername(u);
+  const inChats = state.chats.find(c => c.username && normalizeUsername(c.username) === low);
+  if (inChats) return { entity: inChats, source: 'chat' };
+  const inDir = (state.directory || []).find(d => d.username && normalizeUsername(d.username) === low);
+  if (inDir) return { entity: inDir, source: 'directory' };
+  return null;
+}
+
+/* ===================== EMPTY STATE ===================== */
+function makeEmptyState() {
   return {
     me: {
-      name: 'من', phone: '+98 ',
+      name: 'من',
+      phone: '',
       avatar: { type: 'gradient', value: 3 },
-      verified: true,
-      username: '' // NEW
+      verified: false,
+      username: ''
     },
     theme: 'dark',
     settings: {
-      autoReply: true, enterToSend: true, sounds: false,
-      aiMode: true, notifications: true,
-      autoBackup: true // NEW
+      autoReply: true,
+      enterToSend: true,
+      sounds: false,
+      aiMode: true,
+      notifications: true,
+      autoBackup: true
     },
-    chats: [
-      {
-        id: 'ai_assistant', name: 'دستیار پیسفون', type: 'ai',
-        avatar: { type: 'gradient', value: 4 }, verified: true,
-        username: 'pisfon_ai', isPublic: true, online: true,
-        unread: 0, pinned: true, muted: false, draft: '',
-        createdAt: now - 3600000,
-        messages: [
-          { id: rid(), out: false, ts: now - 60000, type: 'text',
-            text: 'سلام 👋 من دستیار هوشمند پیسفون هستم.\nهر سوالی داری بپرس.' },
-          { id: rid(), out: false, ts: now - 55000, type: 'text',
-            text: 'مثلاً:\n• چطور کانال بسازم؟\n• یه شوخی بگو\n• هوای تهران چطوره؟' }
-        ]
-      },
-      {
-        id: 'family_group', name: 'گروه خانواده', type: 'group',
-        avatar: { type: 'gradient', value: 5 }, verified: false,
-        username: '', isPublic: false, members: 4,
-        description: 'گروه خانوادگی برای هماهنگی و خوش‌گذرانی',
-        coverPhoto: null,
-        admins: ['مامان'],
-        permissions: { sendMessages: 'all', editInfo: 'all' },
-        membersList: [
-          { name: 'مامان', avatar: { type: 'emoji', value: '👩' } },
-          { name: 'بابا', avatar: { type: 'emoji', value: '👨' } },
-          { name: 'سارا', avatar: { type: 'emoji', value: '👧' } },
-          { name: 'رضا', avatar: { type: 'emoji', value: '👦' } }
-        ],
-        unread: 0, pinned: false, muted: false, draft: '',
-        createdAt: now - 86400000,
-        messages: [
-          { id: rid(), out: false, ts: now - 7200000, type: 'text', sender: 'مامان', text: 'سلام بچه‌ها 👋 امروز کجا بریم؟' },
-          { id: rid(), out: false, ts: now - 7100000, type: 'text', sender: 'بابا', text: 'من پایه‌ام، هرجا بگید میام 🚗' },
-          { id: rid(), out: false, ts: now - 6900000, type: 'text', sender: 'سارا', text: 'پارک نزدیک خونه خوبه 🌳' },
-          { id: rid(), out: false, ts: now - 600000, type: 'text', sender: 'رضا', text: 'منم موافقم! ساعت ۵ بریم؟' }
-        ]
-      },
-      {
-        id: 'saved_msgs', name: 'پیام‌های ذخیره‌شده', type: 'saved',
-        avatar: { type: 'gradient', value: 6 }, verified: false,
-        username: '', isPublic: false,
-        unread: 0, pinned: false, muted: false, draft: '',
-        createdAt: now - 86400000 * 3,
-        messages: [
-          { id: rid(), out: true, ts: now - 86400000 * 2, type: 'text',
-            text: '📌 یادداشت‌های من:\n\n• لیست خرید\n• تماس با پشتیبانی\n• ایده‌های پروژه جدید' }
-        ]
-      }
-    ],
+    chats: [],
+    directory: [],
     contacts: [],
-    lastBackupAt: 0 // NEW
+    lastBackupAt: 0
   };
 }
 
+/* ===================== LOAD ===================== */
 let state;
 function load() {
   try {
@@ -222,19 +203,30 @@ function load() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.chats)) return null;
+
+    if (!s.me || typeof s.me !== 'object') s.me = { name: 'من', phone: '', avatar: { type: 'gradient', value: 3 }, verified: false, username: '' };
+    if (!s.me.avatar) s.me.avatar = { type: 'gradient', value: 3 };
+    if (typeof s.me.verified !== 'boolean') s.me.verified = false;
+    if (typeof s.me.phone !== 'string') s.me.phone = '';
+    if (typeof s.me.username !== 'string') s.me.username = '';
+    if (typeof s.me.name !== 'string' || !s.me.name) s.me.name = 'من';
+
     s.settings = Object.assign(
       { autoReply: true, enterToSend: true, sounds: false, aiMode: true, notifications: true, autoBackup: true },
-      s.settings);
+      s.settings || {});
+
     if (!Array.isArray(s.contacts)) s.contacts = [];
-    if (!s.me.avatar) s.me.avatar = { type: 'gradient', value: 3 };
-    if (typeof s.me.verified !== 'boolean') s.me.verified = true;
-    if (!s.me.phone) s.me.phone = '+98 ';
-    if (typeof s.me.username !== 'string') s.me.username = '';
+    if (!Array.isArray(s.directory)) s.directory = [];
     if (s.theme !== 'light' && s.theme !== 'dark') s.theme = 'dark';
     if (typeof s.lastBackupAt !== 'number') s.lastBackupAt = 0;
 
-    if (!s.chats.find(c => c.id === 'ai_assistant')) {
-      s.chats.unshift(defaultState().chats[0]);
+    const savedList = s.chats.filter(c => c.type === 'saved');
+    if (savedList.length > 1) {
+      const keep = savedList[0];
+      for (let i = 1; i < savedList.length; i++) {
+        keep.messages.push(...(savedList[i].messages || []));
+      }
+      s.chats = s.chats.filter(c => c.type !== 'saved' || c === keep);
     }
 
     s.chats.forEach((c, i) => {
@@ -247,20 +239,15 @@ function load() {
       if (c.coverPhoto === undefined) c.coverPhoto = null;
       if (!Array.isArray(c.admins)) c.admins = [];
       if (!c.permissions) c.permissions = { sendMessages: 'all', editInfo: 'all' };
+      if (typeof c.joined !== 'boolean') c.joined = true;
+      if (!Array.isArray(c.messages)) c.messages = [];
       if ((c.type === 'group' || c.type === 'channel') && typeof c.members !== 'number') {
         c.members = c.type === 'group' ? 1 : 0;
       }
       if (c.type === 'group' && Array.isArray(c.membersList) && c.membersList.length > (c.members || 0)) {
         c.members = c.membersList.length;
       }
-      if (c.type === 'group' && !c.membersList) {
-        c.membersList = (c.memberNames || []).map(n => {
-          const pool = GROUP_MEMBER_POOL.find(p => p.name === n);
-          if (pool) return { ...pool };
-          return { name: n, avatar: { type: 'gradient', value: 0 } };
-        });
-      }
-      /* Ensure message fields */
+      if (c.type === 'group' && !Array.isArray(c.membersList)) c.membersList = [];
       c.messages.forEach(m => {
         if (!m.reactions) m.reactions = {};
         if (typeof m.deleted !== 'boolean') m.deleted = false;
@@ -270,13 +257,32 @@ function load() {
         if (m.linkPreview === undefined) m.linkPreview = null;
       });
     });
+
+    s.directory.forEach((c, i) => {
+      if (!c.avatar) c.avatar = { type: 'gradient', value: i % AV_GRADS.length };
+      if (!Array.isArray(c.admins)) c.admins = [];
+      if (!c.permissions) c.permissions = { sendMessages: 'all', editInfo: 'all' };
+      if (typeof c.joined !== 'boolean') c.joined = false;
+      if (!Array.isArray(c.messages)) c.messages = [];
+      if (!Array.isArray(c.membersList)) c.membersList = [];
+      if (typeof c.description !== 'string') c.description = '';
+      if (c.coverPhoto === undefined) c.coverPhoto = null;
+      c.messages.forEach(m => {
+        if (!m.reactions) m.reactions = {};
+        if (typeof m.deleted !== 'boolean') m.deleted = false;
+        if (typeof m.seenCount !== 'number') m.seenCount = 0;
+      });
+    });
+
     s.contacts.forEach((c, i) => {
       if (!c.avatar) c.avatar = { type: 'gradient', value: i % AV_GRADS.length };
       if (typeof c.verified !== 'boolean') c.verified = false;
     });
+
     return s;
   } catch { return null; }
 }
+
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
@@ -284,14 +290,14 @@ function save() {
     try {
       const s = JSON.stringify(state);
       localStorage.setItem(KEY, s);
-      /* Auto-mirror to backup key (survives more) */
       if (state.settings.autoBackup) {
         try { localStorage.setItem(BACKUP_KEY, s); } catch {}
       }
     } catch {}
   }, 150);
 }
-state = load() || defaultState();
+
+state = load() || makeEmptyState();
 
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.theme || 'dark');
@@ -300,7 +306,7 @@ function applyTheme() {
 }
 applyTheme();
 
-/* ===================== BACKUP/RESTORE ===================== */
+/* ===================== BACKUP / RESTORE ===================== */
 function exportBackup(silent = false) {
   try {
     state.lastBackupAt = Date.now();
@@ -328,25 +334,41 @@ function importBackupFromFile(file) {
       try {
         const data = JSON.parse(r.result);
         if (!data || !Array.isArray(data.chats)) throw new Error('bad');
-        closeChat(); closeInfo();
-        state = data;
-        if (!state.settings) state.settings = defaultState().settings;
-        if (!state.me) state.me = defaultState().me;
-        if (!Array.isArray(state.contacts)) state.contacts = [];
-        if (!state.theme) state.theme = 'dark';
-        if (!state.settings.autoBackup) state.settings.autoBackup = true;
-        /* Re-validate */
-        state.chats.forEach((c, i) => {
+        closeChat(); closeInfo(); closeProfilePreview();
+        if (!data.me) data.me = { name: 'من', phone: '', avatar: { type: 'gradient', value: 3 }, verified: false, username: '' };
+        if (!data.me.avatar) data.me.avatar = { type: 'gradient', value: 3 };
+        if (typeof data.me.verified !== 'boolean') data.me.verified = false;
+        if (typeof data.me.username !== 'string') data.me.username = '';
+        if (!data.settings) data.settings = { autoReply: true, enterToSend: true, sounds: false, aiMode: true, notifications: true, autoBackup: true };
+        if (!Array.isArray(data.contacts)) data.contacts = [];
+        if (!Array.isArray(data.directory)) data.directory = [];
+        if (data.theme !== 'light' && data.theme !== 'dark') data.theme = 'dark';
+        if (typeof data.lastBackupAt !== 'number') data.lastBackupAt = 0;
+
+        data.chats.forEach((c, i) => {
           if (!c.avatar) c.avatar = { type: 'gradient', value: i % AV_GRADS.length };
           if (!Array.isArray(c.admins)) c.admins = [];
           if (!c.permissions) c.permissions = { sendMessages: 'all', editInfo: 'all' };
           if (typeof c.description !== 'string') c.description = '';
           if (c.coverPhoto === undefined) c.coverPhoto = null;
+          if (typeof c.joined !== 'boolean') c.joined = true;
+          if (!Array.isArray(c.messages)) c.messages = [];
+          if (!Array.isArray(c.membersList)) c.membersList = [];
           c.messages.forEach(m => {
             if (!m.reactions) m.reactions = {};
             if (typeof m.seenCount !== 'number') m.seenCount = 0;
           });
         });
+        data.directory.forEach((c, i) => {
+          if (!c.avatar) c.avatar = { type: 'gradient', value: i % AV_GRADS.length };
+          if (!Array.isArray(c.admins)) c.admins = [];
+          if (!c.permissions) c.permissions = { sendMessages: 'all', editInfo: 'all' };
+          if (!Array.isArray(c.messages)) c.messages = [];
+          if (!Array.isArray(c.membersList)) c.membersList = [];
+          if (typeof c.joined !== 'boolean') c.joined = false;
+        });
+
+        state = data;
         localStorage.setItem(KEY, JSON.stringify(state));
         localStorage.setItem(BACKUP_KEY, JSON.stringify(state));
         applyTheme();
@@ -373,7 +395,7 @@ function showBackupWelcome() {
         ${icon('save', 30)}
       </div>
       <h2>خوش آمدی 👋</h2>
-      <p>اگه قبلاً از پیسفون پشتیبان گرفته‌ای، می‌تونی همین‌جا بازیابیش کنی.<br>وگرنه از صفر شروع می‌کنیم.</p>
+      <p>اگه قبلاً از پیسفون پشتیبان گرفته‌ای، همین‌جا بازیابیش کن.<br>وگرنه از صفر شروع می‌کنیم.</p>
       <button class="bbtn primary" id="bw-restore">${icon('upload', 18)} بازیابی از فایل پشتیبان</button>
       <button class="bbtn secondary" id="bw-new">شروع از صفر</button>
     </div>
@@ -398,11 +420,8 @@ function showBackupWelcome() {
 }
 
 function shouldShowBackupWelcome() {
-  /* Show only if we have NO data at all — very first launch */
   try {
-    const hasKey = localStorage.getItem(KEY);
-    const hasBackup = localStorage.getItem(BACKUP_KEY);
-    return !hasKey && !hasBackup;
+    return !localStorage.getItem(KEY) && !localStorage.getItem(BACKUP_KEY);
   } catch { return false; }
 }
 
@@ -530,6 +549,11 @@ function toast(t) {
 }
 
 const getChat = id => state.chats.find(c => c.id === id);
+const getEntity = id => {
+  const inChats = state.chats.find(c => c.id === id);
+  if (inChats) return inChats;
+  return (state.directory || []).find(d => d.id === id);
+};
 const lastMsg = c => c.messages[c.messages.length - 1];
 const lastTs  = c => (lastMsg(c) ? lastMsg(c).ts : c.createdAt || 0);
 function chatStatus(c) {
@@ -555,18 +579,18 @@ function previewText(c) {
   return t;
 }
 
-/* ===================== LINK DETECTION ===================== */
+/* ===================== LINK / MENTION ===================== */
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+const MENTION_REGEX = /@([a-zA-Z0-9][a-zA-Z0-9_\-=+]{2,31})/g;
+
 function extractFirstUrl(text) {
   if (!text) return null;
   const m = text.match(URL_REGEX);
   return m ? m[0] : null;
 }
 function domainOf(url) {
-  try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, '');
-  } catch { return null; }
+  try { const u = new URL(url); return u.hostname.replace(/^www\./, ''); }
+  catch { return null; }
 }
 function faviconUrl(domain) {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
@@ -576,19 +600,37 @@ function buildLinkPreview(url) {
   if (!domain) return null;
   return { url, domain, favicon: faviconUrl(domain) };
 }
-function linkify(text) {
+function renderRichText(text) {
   if (!text) return '';
-  const parts = [];
-  let last = 0;
-  const re = new RegExp(URL_REGEX.source, 'gi');
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    parts.push(esc(text.slice(last, m.index)));
-    parts.push(`<a href="${esc(m[0])}" target="_blank" rel="noopener" style="color:var(--accent-2);text-decoration:underline">${esc(m[0])}</a>`);
-    last = m.index + m[0].length;
-  }
-  parts.push(esc(text.slice(last)));
-  return parts.join('');
+  let out = esc(text);
+  out = out.replace(URL_REGEX, (match) =>
+    `<a href="${match}" target="_blank" rel="noopener" style="color:var(--accent-2);text-decoration:underline">${match}</a>`);
+  out = out.replace(MENTION_REGEX, (full, name) =>
+    `<a class="mention-link" data-mention="${esc(name)}">@${esc(name)}</a>`);
+  return out;
+}
+function extractFirstMention(text) {
+  if (!text) return null;
+  MENTION_REGEX.lastIndex = 0;
+  const m = text.match(MENTION_REGEX);
+  MENTION_REGEX.lastIndex = 0;
+  if (!m || !m.length) return null;
+  const match = m[0].match(/@([a-zA-Z0-9][a-zA-Z0-9_\-=+]{2,31})/);
+  return match ? match[1] : null;
+}
+function buildMentionPreview(username) {
+  const found = findEntityByUsername(username);
+  if (!found) return null;
+  const e = found.entity;
+  return {
+    username: e.username,
+    name: e.name,
+    verified: !!e.verified,
+    type: e.type,
+    members: e.members || 0,
+    source: found.source,
+    id: e.id
+  };
 }
 
 /* ===================== CHAT FILTER ===================== */
@@ -599,6 +641,36 @@ let searchDebounceTimer = null;
 function renderChatList() {
   const q = ($('#search-input').value || '').trim();
   const qLower = q.toLowerCase();
+  const box = $('#chat-list');
+  const clearBtn = $('#search-clear');
+  if (clearBtn) clearBtn.classList.toggle('show', q.length > 0);
+
+  if (chatFilter === 'discover') {
+    const dirs = (state.directory || []).filter(d =>
+      !q || d.name.toLowerCase().includes(qLower) || (d.username || '').toLowerCase().includes(qLower));
+    if (!dirs.length) {
+      box.innerHTML = `<div class="empty">${icon('search', 48)}<div class="ttl">چیزی برای کشف نیست</div></div>`;
+      return;
+    }
+    box.innerHTML = `<div class="search-section-title">کانال‌ها و گروه‌های عمومی</div>` +
+      dirs.map(d => `
+        <div class="chat-item" data-directory="${d.id}">
+          ${avatarHTML(d)}
+          <div class="ci-body">
+            <div class="ci-top">
+              <span class="ci-name">${nameWithVf(d.name, d.verified, 17)}</span>
+              <span class="ci-time" style="font-size:11px;color:var(--text-3)">
+                ${d.type === 'channel' ? 'کانال' : 'گروه'}
+              </span>
+            </div>
+            <div class="ci-bot">
+              <span class="ci-prev">${esc(d.description || (d.members ? d.members.toLocaleString('fa-IR') + ' عضو' : ''))}</span>
+            </div>
+          </div>
+        </div>`).join('');
+    return;
+  }
+
   let list = state.chats.filter(c => !q || c.name.toLowerCase().includes(qLower));
 
   if (chatFilter !== 'all') {
@@ -613,10 +685,6 @@ function renderChatList() {
   }
 
   list = list.slice().sort((a, b) => (b.pinned - a.pinned) || (lastTs(b) - lastTs(a)));
-
-  const box = $('#chat-list');
-  const clearBtn = $('#search-clear');
-  if (clearBtn) clearBtn.classList.toggle('show', q.length > 0);
 
   let msgResultsHtml = '';
   if (q.length >= 2) {
@@ -839,14 +907,14 @@ let msgSearchHits = [];
 let msgSearchIndex = -1;
 
 function highlightMatch(text, q) {
-  if (!q) return linkify(text);
+  if (!q) return renderRichText(text);
   try {
     const re = new RegExp('(' + escRegex(q) + ')', 'ig');
     return esc(text).replace(re, '<span class="msg-highlight">$1</span>');
   } catch { return esc(text); }
 }
 
-function renderReactions(m, chat) {
+function renderReactions(m) {
   if (!m.reactions) return '';
   const keys = Object.keys(m.reactions).filter(k => (m.reactions[k] || []).length > 0);
   if (!keys.length) return '';
@@ -857,14 +925,6 @@ function renderReactions(m, chat) {
       <span>${emoji}</span><span class="rp-count">${names.length.toLocaleString('fa-IR')}</span>
     </button>`;
   }).join('') + `</div>`;
-}
-
-function renderSeen(m, chat) {
-  if (chat.type !== 'channel' || !m.out) return '';
-  if (!m.seenCount && !m.seenTarget) return '';
-  return `<div style="display:flex;justify-content:flex-start;margin-top:4px;margin-bottom:-2px;width:100%">
-    <span class="msg-seen">${icon('user', 13)} ${fmtNum(m.seenCount || 0)}</span>
-  </div>`;
 }
 
 function msgHTML(chat, m, prevMsg, nextMsg) {
@@ -925,10 +985,9 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
         <div class="vwave">${bars}</div>
         <span class="vdur">${fmtDur(m.dur || 0)}</span></div>`;
   } else {
-    const textHtml = msgSearchQuery ? highlightMatch(m.text, msgSearchQuery) : linkify(m.text);
+    const textHtml = msgSearchQuery ? highlightMatch(m.text, msgSearchQuery) : renderRichText(m.text);
     inner += `<div class="btext">${textHtml}</div>`;
 
-    /* Link preview */
     if (m.linkPreview && m.linkPreview.domain) {
       inner += `<a class="link-preview" href="${esc(m.linkPreview.url)}" target="_blank" rel="noopener">
         <div class="lp-header">
@@ -938,9 +997,23 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
         <div class="lp-url">${esc(m.linkPreview.url)}</div>
       </a>`;
     }
+
+    const mention = extractFirstMention(m.text);
+    if (mention) {
+      const mp = buildMentionPreview(mention);
+      if (mp) {
+        inner += `<a class="mention-preview" data-mention-preview="${esc(mp.username)}">
+          <div class="mp-header">
+            <div class="mp-avatar" style="${avatarBgStyle({ name: mp.name })}">${esc(initials(mp.name))}</div>
+            <span class="mp-name">${esc(mp.name)}${mp.verified ? vfHTML(13) : ''}</span>
+          </div>
+          <span class="mp-sub">@${esc(mp.username)} · ${mp.type === 'channel' ? 'کانال' : mp.type === 'group' ? 'گروه' : 'کاربر'}</span>
+        </a>`;
+      }
+    }
   }
 
-  inner += renderReactions(m, chat);
+  inner += renderReactions(m);
 
   let ticks = '';
   if (m.out && !m.deleted) {
@@ -950,7 +1023,10 @@ function msgHTML(chat, m, prevMsg, nextMsg) {
   }
 
   const metaText = `${fmtTime(m.ts)}${m.editedForAll ? ' · ویرایش‌شده' : (m.edited ? ' ✎' : '')}`;
-  const msgInner = `${inner}<div class="meta"><span>${metaText}</span>${ticks}</div>${renderSeen(m, chat)}`;
+  const seenHtml = (chat.type === 'channel' && m.out && (m.seenCount || m.seenTarget))
+    ? `<span class="msg-seen">${icon('eye', 13)} ${fmtNum(m.seenCount || 0)}</span>`
+    : '';
+  const msgInner = `${inner}<div class="meta"><span>${metaText}</span>${seenHtml}${ticks}</div>`;
 
   if (chat.type === 'group' && !m.out) {
     const senderName = m.sender || 'عضو';
@@ -1080,6 +1156,7 @@ function openChat(id) {
   replyToMsg = null;
   hideReplyBar();
   closeMsgSearch();
+  closeProfilePreview();
   document.body.classList.add('in-chat');
   renderChatHeader();
   renderMessages();
@@ -1128,6 +1205,7 @@ function renderInfo() {
   const isPublic = !!c.isPublic;
   const admins = c.admins || [];
   const perms = c.permissions || { sendMessages: 'all', editInfo: 'all' };
+  const isJoined = c.joined !== false;
 
   $('#info-title').textContent = c.type === 'channel' ? 'اطلاعات کانال'
     : c.type === 'group' ? 'اطلاعات گروه'
@@ -1158,14 +1236,12 @@ function renderInfo() {
     stats = `<div class="info-stat">${icon(navigator.onLine ? 'sparkle' : 'chat-outline', 16)} ${navigator.onLine ? 'آنلاین — پاسخ هوشمند' : 'آفلاین — پاسخ آماده'}</div>`;
   }
 
-  /* Cover photo */
   const coverHtml = isGroupOrChannel ? `
     <div class="info-cover ${c.coverPhoto ? '' : 'empty'}" data-info-act="edit-cover" style="${c.coverPhoto ? `background-image:url(&quot;${esc(safeUrlCss(c.coverPhoto))}&quot;)` : ''}">
       ${c.coverPhoto ? '' : icon('camera', 22) + ' افزودن کاور'}
     </div>
   ` : '';
 
-  /* Description */
   const descHtml = isGroupOrChannel ? `
     <div class="group">
       <div class="row" data-info-act="edit-description" style="cursor:pointer">
@@ -1175,7 +1251,6 @@ function renderInfo() {
     </div>
   ` : '';
 
-  /* Members list with admin controls */
   let membersList = '';
   if (c.type === 'group' && c.membersList && c.membersList.length) {
     membersList = `
@@ -1242,7 +1317,6 @@ function renderInfo() {
     </div>
   ` : '';
 
-  /* Permissions */
   const permsGroup = isGroupOrChannel ? `
     <div class="section-title">مجوزها</div>
     <div class="group">
@@ -1261,6 +1335,14 @@ function renderInfo() {
     </div>
   ` : '';
 
+  const joinLeaveHtml = isGroupOrChannel ? `
+    <div class="profile-actions">
+      ${isJoined
+        ? `<button class="btn-leave" data-info-act="leave-chat">${icon('logout', 18)} ترک ${c.type === 'channel' ? 'کانال' : 'گروه'}</button>`
+        : `<button class="btn-join" data-info-act="join-chat">${icon('login', 18)} عضویت</button>`}
+    </div>
+  ` : '';
+
   $('#info-body').innerHTML = `
     <div class="info-hero ${isGroupOrChannel ? 'has-cover' : ''}">
       ${coverHtml}
@@ -1274,6 +1356,7 @@ function renderInfo() {
     ${settingsGroup}
     ${permsGroup}
     ${membersList}
+    ${joinLeaveHtml}
     <div class="section-title">عملیات</div>
     <div class="group">
       <div class="row" data-info-act="toggle-mute">
@@ -1306,7 +1389,7 @@ function renderInfo() {
   $$('#info-body [data-info-act]').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.tagName === 'INPUT' || e.target.closest('label.switch')) return;
-      handleInfoAction(el.dataset.infoAct, c, el.dataset.memberName);
+      handleInfoAction(el.dataset.infoAct, c);
     });
   });
   $$('#info-body [data-member-name]').forEach(el => {
@@ -1374,11 +1457,45 @@ function pickCoverImage(chat) {
   inp.click();
 }
 
-function handleInfoAction(act, c, memberName) {
+function handleInfoAction(act, c) {
+  if (act === 'join-chat') {
+    c.joined = true;
+    const dirIndex = (state.directory || []).findIndex(d => d.id === c.id);
+    if (dirIndex >= 0) {
+      const dirEntry = state.directory[dirIndex];
+      dirEntry.joined = true;
+      const copy = JSON.parse(JSON.stringify(dirEntry));
+      copy.joined = true;
+      if (!state.chats.find(x => x.id === copy.id)) {
+        state.chats.push(copy);
+      }
+    }
+    renderInfo(); renderChatList(); save();
+    toast('عضو شدی ✓');
+    return;
+  }
+  if (act === 'leave-chat') {
+    showConfirm('ترک ' + (c.type === 'channel' ? 'کانال' : 'گروه'), 'مطمئنی می‌خوای ترک کنی؟ پیام‌ها حفظ می‌شن.', () => {
+      c.joined = false;
+      const dirIndex = (state.directory || []).findIndex(d => d.id === c.id);
+      if (dirIndex >= 0) {
+        state.directory[dirIndex].joined = false;
+      } else {
+        const copy = JSON.parse(JSON.stringify(c));
+        copy.joined = false;
+        state.directory = state.directory || [];
+        state.directory.push(copy);
+      }
+      state.chats = state.chats.filter(x => x.id !== c.id);
+      closeInfo(); closeChat(); renderChatList(); save();
+      toast('ترک کردی');
+    });
+    return;
+  }
   if (act === 'edit-cover') {
     if (c.coverPhoto) {
       openSheet(`
-        <div class="sheet-title">کاور گروه</div>
+        <div class="sheet-title">کاور</div>
         <div class="sheet-item" data-cover="change">${icon('image')}تغییر عکس</div>
         <div class="sheet-item danger" data-cover="remove">${icon('trash')}حذف کاور</div>
       `);
@@ -1396,7 +1513,7 @@ function handleInfoAction(act, c, memberName) {
     return;
   }
   if (act === 'edit-description') {
-    showPrompt('توضیحات گروه', c.description || '', v => {
+    showPrompt('توضیحات', c.description || '', v => {
       c.description = v.trim();
       renderInfo(); save();
       toast('توضیحات ذخیره شد');
@@ -1442,14 +1559,14 @@ function handleInfoAction(act, c, memberName) {
   }
   if (act === 'edit-username') {
     showPrompt('آیدی (بدون @)', c.username || '', v => {
-      let u = v.trim().replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-      if (!u || u.length < 3 || u.length > 32) { toast('حداقل ۳ کاراکتر'); return; }
-      const dup = state.chats.find(x => x.id !== c.id && x.username === u);
-      if (dup) { toast('این آیدی قبلاً گرفته شده'); return; }
+      let u = normalizeUsername(v);
+      if (!u) { c.username = ''; renderInfo(); save(); toast('آیدی حذف شد'); return; }
+      if (!isValidUsername(u)) { toast('آیدی فقط انگلیسی + عدد + _ - = + (شروع با حرف/عدد)'); return; }
+      if (isUsernameTaken(u, 'chat', c.id)) { toast('این آیدی قبلاً گرفته شده'); return; }
       c.username = u;
       renderInfo(); save();
       toast('آیدی ذخیره شد: @' + u);
-    });
+    }, { ltr: true });
     return;
   }
   if (act === 'toggle-public') {
@@ -1494,6 +1611,7 @@ function handleInfoAction(act, c, memberName) {
     showConfirm('حذف چت', 'کل این چت حذف شود؟', () => {
       state.chats = state.chats.filter(x => x.id !== c.id);
       state.contacts = state.contacts.filter(x => x.id !== c.id);
+      state.directory = (state.directory || []).filter(x => x.id !== c.id);
       closeInfo(); closeChat(); renderChatList(); renderContacts(); save();
       toast('چت حذف شد');
     });
@@ -1501,33 +1619,127 @@ function handleInfoAction(act, c, memberName) {
   }
 }
 
+/* ===================== PROFILE PREVIEW ===================== */
+let profilePreviewUsername = null;
+function openProfilePreview(username) {
+  const found = findEntityByUsername(username);
+  if (!found) { toast('آیدی پیدا نشد'); return; }
+  const e = found.entity;
+  profilePreviewUsername = username;
+  document.body.classList.add('in-profile');
+
+  const isGroupOrChannel = e.type === 'group' || e.type === 'channel';
+  const isJoined = state.chats.find(x => x.id === e.id);
+  const coverHtml = isGroupOrChannel ? `
+    <div class="profile-cover ${e.coverPhoto ? '' : 'empty'}" style="${e.coverPhoto ? `background-image:url(&quot;${esc(safeUrlCss(e.coverPhoto))}&quot;)` : ''}">
+      ${e.coverPhoto ? '' : 'بدون کاور'}
+    </div>
+  ` : `<div class="profile-cover empty"></div>`;
+
+  let statsHtml = '';
+  if (isGroupOrChannel) {
+    statsHtml = `<div class="info-stat">${icon('users', 16)} <b>${(e.members || 0).toLocaleString('fa-IR')}</b> عضو</div>`;
+  }
+
+  let actionsHtml = '';
+  if (isGroupOrChannel) {
+    actionsHtml = isJoined
+      ? `<button class="btn-leave" id="pp-open">${icon('chat-outline', 18)} باز کردن چت</button>`
+      : `<button class="btn-join" id="pp-join">${icon('login', 18)} عضویت</button>`;
+  }
+
+  $('#profile-body').innerHTML = `
+    <div class="profile-preview-hero">
+      ${coverHtml}
+      <div class="profile-avatar-wrap">
+        <div class="avatar" style="${avatarBgStyle(e)}">${avatarContent(e)}</div>
+        <div class="profile-name">${esc(e.name)}${e.verified ? vfHTML(22) : ''}</div>
+        <div class="profile-username">@${esc(e.username)}</div>
+        <div class="profile-badge-row">
+          ${e.verified ? `<div class="info-badge verified">${icon('verified', 14)} تأیید شده</div>` : ''}
+          ${isGroupOrChannel ? `<div class="info-badge ${e.isPublic ? 'public' : 'private'}">${e.isPublic ? icon('globe', 14) + ' عمومی' : icon('lock', 14) + ' خصوصی'}</div>` : ''}
+        </div>
+        ${statsHtml ? `<div class="profile-stat-row">${statsHtml}</div>` : ''}
+      </div>
+    </div>
+    ${e.description ? `<div class="profile-desc">${esc(e.description)}</div>` : ''}
+    ${actionsHtml ? `<div class="profile-actions">${actionsHtml}</div>` : ''}
+  `;
+  $('#screen-profile').classList.add('open');
+
+  const joinBtn = $('#pp-join');
+  if (joinBtn) {
+    joinBtn.onclick = () => {
+      const dirIndex = (state.directory || []).findIndex(d => d.id === e.id);
+      let source = e;
+      if (dirIndex >= 0) {
+        source = state.directory[dirIndex];
+        source.joined = true;
+      }
+      if (!state.chats.find(x => x.id === e.id)) {
+        const copy = JSON.parse(JSON.stringify(source));
+        copy.joined = true;
+        state.chats.push(copy);
+      }
+      save(); closeProfilePreview(); renderChatList();
+      toast('عضو شدی ✓');
+      setTimeout(() => openChat(e.id), 200);
+    };
+  }
+  const openBtn = $('#pp-open');
+  if (openBtn) {
+    openBtn.onclick = () => {
+      closeProfilePreview();
+      setTimeout(() => openChat(e.id), 150);
+    };
+  }
+}
+function closeProfilePreview() {
+  document.body.classList.remove('in-profile');
+  $('#screen-profile').classList.remove('open');
+  profilePreviewUsername = null;
+}
+
 /* ===================== SEEN SIMULATION ===================== */
 function startSeenSimulation(chat, msg) {
   if (chat.type !== 'channel') return;
   const totalMembers = chat.members || 0;
   if (totalMembers === 0) return;
-  /* Target: 30-75% of members */
-  const ratio = 0.3 + Math.random() * 0.45;
+
+  /* هدف: ۲۰ تا ۶۰ درصد اعضا */
+  const ratio = 0.2 + Math.random() * 0.4;
   const target = Math.max(1, Math.floor(totalMembers * ratio));
   msg.seenTarget = target;
   msg.seenCount = 0;
-  const duration = 60000 + Math.random() * 120000; /* 1-3 min */
+
+  /* زمان کل: بسته به تعداد اعضا — بین ۱ تا ۵ دقیقه */
+  const baseDuration = 60000 + Math.random() * 120000;
+  const sizeFactor = Math.min(3, Math.log10(Math.max(100, totalMembers)) * 0.6);
+  const duration = baseDuration * sizeFactor;
+
   const start = Date.now();
+  /* هر ۵ تا ۱۲ ثانیه یک آپدیت */
+  const minStep = 5000;
+  const maxStep = 12000;
+
   const tick = () => {
     const elapsed = Date.now() - start;
     const progress = Math.min(1, elapsed / duration);
-    /* Ease-out: fast at first, slow at end */
-    const eased = 1 - Math.pow(1 - progress, 2.2);
-    msg.seenCount = Math.floor(target * eased);
-    if (progress < 1) {
-      setTimeout(tick, 1800 + Math.random() * 800);
-    } else {
-      msg.seenCount = target;
-    }
+    const eased = 1 - Math.pow(1 - progress, 2.5);
+    msg.seenCount = Math.max(msg.seenCount, Math.floor(target * eased));
+
     if (activeChatId === chat.id) renderMessages(false);
     save();
+
+    if (progress < 1) {
+      setTimeout(tick, minStep + Math.random() * (maxStep - minStep));
+    } else {
+      msg.seenCount = target;
+      if (activeChatId === chat.id) renderMessages(false);
+      save();
+    }
   };
-  setTimeout(tick, 1200);
+  setTimeout(tick, 8000);
 }
 
 /* ===================== REACTIONS ===================== */
@@ -1580,7 +1792,6 @@ function toggleReaction(m, emoji, chat) {
   } else {
     list.push('من');
     m.reactions[emoji] = list;
-    /* Simulate others reacting (only if not own outgoing message in private chat) */
     if (chat.type === 'group' && Math.random() > 0.5) {
       const others = (chat.membersList || []).map(x => x.name).filter(n => n !== 'من');
       if (others.length) {
@@ -1607,10 +1818,8 @@ function sendMessage(extra = {}, textOverride) {
   const text = textOverride !== undefined ? textOverride : input.value.trim();
   if (!text && !extra.type) return;
 
-  /* Permissions check */
   if (chat.permissions && chat.permissions.sendMessages === 'admins') {
     if (chat.type === 'group') {
-      /* Only "me" can send if I'm admin — otherwise block */
       toast('فقط مدیران می‌توانند پیام بفرستند');
       return;
     }
@@ -1623,7 +1832,6 @@ function sendMessage(extra = {}, textOverride) {
     seenCount: 0, seenTarget: 0, linkPreview: null
   }, extra);
 
-  /* Auto link preview */
   if (m.type === 'text' && m.text) {
     const url = extractFirstUrl(m.text);
     if (url) m.linkPreview = buildLinkPreview(url);
@@ -1642,7 +1850,6 @@ function sendMessage(extra = {}, textOverride) {
   setTimeout(() => { m.status = 'delivered'; if (activeChatId === chat.id) renderMessages(false); save(); }, 600);
   setTimeout(() => { m.status = 'read'; if (activeChatId === chat.id) renderMessages(false); save(); }, 1700);
 
-  /* Start seen simulation for channels */
   if (chat.type === 'channel') startSeenSimulation(chat, m);
 
   if (chat.type === 'ai') {
@@ -1697,7 +1904,6 @@ async function scheduleAIReply(chat, userMsg) {
       if (state.settings.sounds) beep();
       notifyIncoming(c, member.name + ': ' + replyText);
 
-      /* Occasionally someone reacts to YOUR message */
       if (Math.random() > 0.6) {
         const myLastMsg = [...c.messages].reverse().find(x => x.out && !x.deleted);
         if (myLastMsg) {
@@ -1734,7 +1940,7 @@ async function scheduleAIReply(chat, userMsg) {
     reactions: {}, deleted: false, editedForAll: false,
     seenCount: 0, seenTarget: 0, linkPreview: null
   };
-  const url = extractTextUrl(replyText);
+  const url = extractFirstUrl(replyText);
   if (url) replyMsg.linkPreview = buildLinkPreview(url);
   c.messages.push(replyMsg);
   if (activeChatId !== c.id) c.unread = (c.unread || 0) + 1;
@@ -1924,12 +2130,24 @@ function hideReplyBar() {
 }
 $('#rb-close').addEventListener('click', hideReplyBar);
 
-/* ===================== VOICE PLAYBACK ===================== */
+/* ===================== VOICE PLAYBACK + REACTIONS + MENTION ===================== */
 let currentAudio = null;
 let currentAudioBtn = null;
 
 $('#messages').addEventListener('click', e => {
-  /* Reaction pill click */
+  const mentionPreview = e.target.closest('.mention-preview');
+  if (mentionPreview) {
+    const username = mentionPreview.dataset.mentionPreview;
+    openProfilePreview(username);
+    return;
+  }
+  const mentionLink = e.target.closest('.mention-link');
+  if (mentionLink) {
+    e.preventDefault();
+    openProfilePreview(mentionLink.dataset.mention);
+    return;
+  }
+
   const reactPill = e.target.closest('.reaction-pill');
   if (reactPill) {
     const msgId = reactPill.dataset.reactMsg;
@@ -2012,11 +2230,12 @@ $('#messages').addEventListener('click', e => {
 let lastTapTime = 0;
 let lastTapId = null;
 $('#messages').addEventListener('pointerup', e => {
+  if (e.target.closest('.mention-preview') || e.target.closest('.mention-link') ||
+      e.target.closest('.link-preview') || e.target.closest('.reaction-pill')) return;
   const el = e.target.closest('.msg');
   if (!el) return;
   const now = Date.now();
   if (lastTapId === el.dataset.id && now - lastTapTime < 350) {
-    /* double tap! */
     const chat = getChat(activeChatId);
     const m = chat.messages.find(x => x.id === el.dataset.id);
     if (m) {
@@ -2035,7 +2254,8 @@ $('#messages').addEventListener('pointerup', e => {
 /* ===================== LONG PRESS MESSAGE ===================== */
 let pressTimer = null, pressStart = null, pressedMsgEl = null;
 $('#messages').addEventListener('pointerdown', e => {
-  if (e.target.closest('.reaction-pill')) return;
+  if (e.target.closest('.reaction-pill') || e.target.closest('.mention-preview') ||
+      e.target.closest('.mention-link') || e.target.closest('.link-preview')) return;
   const el = e.target.closest('.msg');
   if (!el || el.classList.contains('typing')) return;
   pressStart = { x: e.clientX, y: e.clientY };
@@ -2106,18 +2326,18 @@ function copyToClipboard(text) {
 }
 
 function saveToSavedMessages(chat, m) {
-  let saved = state.chats.find(c => c.id === 'saved_msgs' || c.type === 'saved');
+  let saved = state.chats.find(c => c.type === 'saved');
   if (!saved) {
     saved = {
       id: 'saved_msgs', name: 'پیام‌های ذخیره‌شده', type: 'saved',
       avatar: { type: 'gradient', value: 6 }, verified: false,
       username: '', isPublic: false,
       unread: 0, pinned: false, muted: false, draft: '',
+      joined: true,
       createdAt: Date.now(), messages: []
     };
     state.chats.push(saved);
   }
-  const sourceName = m.out ? 'شما' : (m.sender || chat.name);
   const clone = {
     id: rid(), text: m.text, out: true, ts: Date.now(),
     status: 'sent', type: m.type, replyTo: null,
@@ -2144,7 +2364,6 @@ function handleMsgAction(act, chat, m) {
       m.text = val.trim();
       m.editedForAll = true;
       m.edited = true;
-      /* re-extract link preview */
       const url = extractFirstUrl(m.text);
       m.linkPreview = url ? buildLinkPreview(url) : null;
       renderMessages(false); renderChatList(); save();
@@ -2152,10 +2371,7 @@ function handleMsgAction(act, chat, m) {
     });
     return;
   }
-  if (act === 'save') {
-    saveToSavedMessages(chat, m);
-    return;
-  }
+  if (act === 'save') { saveToSavedMessages(chat, m); return; }
   if (act === 'forward') {
     if (!state.chats.length) { toast('چتی برای هدایت نیست'); return; }
     openSheet(`<div class="sheet-title">هدایت به…</div>` +
@@ -2203,7 +2419,7 @@ let chatLongPressFired = false;
 
 $('#chat-list').addEventListener('pointerdown', e => {
   const item = e.target.closest('.chat-item');
-  if (!item || !item.dataset.id) return;
+  if (!item || (!item.dataset.id && !item.dataset.directory)) return;
   chatPressStart = { x: e.clientX, y: e.clientY };
   pressedChatItem = item;
   chatLongPressFired = false;
@@ -2211,7 +2427,11 @@ $('#chat-list').addEventListener('pointerdown', e => {
     if (pressedChatItem) {
       chatLongPressFired = true;
       if (navigator.vibrate) navigator.vibrate(20);
-      showChatListMenu(pressedChatItem.dataset.id);
+      if (pressedChatItem.dataset.id) showChatListMenu(pressedChatItem.dataset.id);
+      else if (pressedChatItem.dataset.directory) {
+        const d = (state.directory || []).find(x => x.id === pressedChatItem.dataset.directory);
+        if (d && d.username) openProfilePreview(d.username);
+      }
     }
     chatPressTimer = null;
     chatPressStart = null;
@@ -2569,6 +2789,7 @@ $('#btn-chat-menu').addEventListener('click', () => {
         showConfirm('حذف گفتگو', 'کل این گفتگو حذف شود؟', () => {
           state.chats = state.chats.filter(x => x.id !== c.id);
           state.contacts = state.contacts.filter(x => x.id !== c.id);
+          state.directory = (state.directory || []).filter(x => x.id !== c.id);
           closeChat(); renderChatList(); renderContacts(); save(); toast('حذف شد');
         });
         return;
@@ -2703,6 +2924,7 @@ $('#btn-new-chat').addEventListener('click', () => {
     <div class="sheet-item" data-nt="private">${icon('user')}گفتگوی شخصی</div>
     <div class="sheet-item" data-nt="group">${icon('users')}گروه</div>
     <div class="sheet-item" data-nt="channel">${icon('megaphone')}کانال</div>
+    <div class="sheet-item" data-nt="ai">${icon('sparkle')}چت با هوش مصنوعی</div>
     <div class="sheet-item" data-nt="saved">${icon('bookmark')}پیام‌های ذخیره‌شده</div>
   `);
   $$('#sheet-content [data-nt]').forEach(b => b.addEventListener('click', () => {
@@ -2722,8 +2944,10 @@ $('#search-clear').addEventListener('click', () => {
   $('#search-input').focus();
 });
 
+/* ===================== CHAT LIST CLICKS ===================== */
 $('#chat-list').addEventListener('click', e => {
   if (chatLongPressFired) { chatLongPressFired = false; return; }
+
   const msgResult = e.target.closest('.msg-search-result');
   if (msgResult) {
     const chatId = msgResult.dataset.resultChat;
@@ -2742,6 +2966,14 @@ $('#chat-list').addEventListener('click', e => {
     }, 250);
     return;
   }
+
+  const dirItem = e.target.closest('[data-directory]');
+  if (dirItem) {
+    const d = (state.directory || []).find(x => x.id === dirItem.dataset.directory);
+    if (d && d.username) openProfilePreview(d.username);
+    return;
+  }
+
   const item = e.target.closest('.chat-item');
   if (item && item.dataset.id) openChat(item.dataset.id);
 });
@@ -2758,7 +2990,8 @@ $('#contacts-list').addEventListener('click', e => {
       avatar: c.avatar, verified: c.verified,
       username: '', online: Math.random() > .5,
       unread: 0, pinned: false, muted: false,
-      draft: '', messages: [], createdAt: Date.now()
+      draft: '', messages: [], createdAt: Date.now(),
+      joined: true
     };
     state.chats.push(chat); save();
   }
@@ -2775,11 +3008,33 @@ $('#btn-info-edit').addEventListener('click', () => {
   renderAvatarPicker('gradient');
   avatarOverlay.classList.add('show');
 });
+$('#btn-profile-back').addEventListener('click', closeProfilePreview);
 
 /* ===================== NEW CHAT ===================== */
 function promptChatName(type) {
-  const titles = { private: 'نام مخاطب', group: 'نام گروه', channel: 'نام کانال', saved: null };
-  if (type === 'saved') { createChat({ name: 'پیام‌های ذخیره‌شده', type: 'saved' }); return; }
+  const titles = { private: 'نام مخاطب', group: 'نام گروه', channel: 'نام کانال', ai: 'نام دستیار', saved: null };
+  if (type === 'saved') {
+    let existing = state.chats.find(c => c.type === 'saved');
+    if (!existing) {
+      createChat({ name: 'پیام‌های ذخیره‌شده', type: 'saved' });
+    } else {
+      toast('پیام‌های ذخیره‌شده از قبل موجوده');
+      setTimeout(() => openChat(existing.id), 150);
+    }
+    return;
+  }
+  if (type === 'ai') {
+    createChat({
+      name: 'دستیار پیسفون',
+      type: 'ai',
+      avatar: { type: 'gradient', value: 4 },
+      verified: true,
+      username: 'pisfon_ai',
+      online: true,
+      joined: true
+    });
+    return;
+  }
   showPrompt(titles[type], '', val => {
     const name = val.trim();
     if (!name) { toast('نام نمی‌تونه خالی باشه'); return; }
@@ -2788,7 +3043,8 @@ function promptChatName(type) {
       avatar: { type: 'gradient', value: Math.floor(Math.random() * AV_GRADS.length) },
       verified: false, username: '', isPublic: type === 'channel',
       description: '', coverPhoto: null,
-      admins: [], permissions: { sendMessages: 'all', editInfo: 'all' }
+      admins: [], permissions: { sendMessages: 'all', editInfo: 'all' },
+      joined: true
     };
     if (type === 'private') { data.online = true; }
     if (type === 'group' || type === 'channel') {
@@ -2836,13 +3092,10 @@ function askPublicOrPrivate(data, type) {
     if (data.isPublic) {
       setTimeout(() => {
         showPrompt('آیدی عمومی (بدون @)', '', v => {
-          let u = v.trim().replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-          if (u && u.length >= 3 && u.length <= 32) {
-            const dup = state.chats.find(x => x.username === u);
-            if (!dup) data.username = u;
-          }
+          let u = normalizeUsername(v);
+          if (u && isValidUsername(u) && !isUsernameTaken(u)) data.username = u;
           finishCreateChat(data, type);
-        });
+        }, { ltr: true });
       }, 220);
     } else {
       finishCreateChat(data, type);
@@ -2864,7 +3117,8 @@ function createChat(data) {
     id: rid(), unread: 0, pinned: false, muted: false,
     draft: '', messages: [], createdAt: Date.now(),
     description: '', coverPhoto: null,
-    admins: [], permissions: { sendMessages: 'all', editInfo: 'all' }
+    admins: [], permissions: { sendMessages: 'all', editInfo: 'all' },
+    joined: true
   }, data);
   state.chats.push(chat);
   save(); renderChatList();
@@ -2882,14 +3136,13 @@ $('#settings-body').addEventListener('click', e => {
       state.me.name = v.trim(); renderSettings(); renderChatList(); save(); toast('ذخیره شد');
     });
     if (act === 'edit-username') showPrompt('آیدی شما (بدون @)', state.me.username || '', v => {
-      let u = v.trim().replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+      let u = normalizeUsername(v);
       if (!u) { state.me.username = ''; renderSettings(); save(); toast('حذف شد'); return; }
-      if (u.length < 3 || u.length > 32) { toast('حداقل ۳ کاراکتر'); return; }
-      const dup = state.chats.find(x => x.username === u);
-      if (dup) { toast('این آیدی قبلاً گرفته شده'); return; }
+      if (!isValidUsername(u)) { toast('آیدی فقط انگلیسی + عدد + _ - = + (شروع با حرف/عدد)'); return; }
+      if (isUsernameTaken(u, 'me')) { toast('این آیدی قبلاً گرفته شده'); return; }
       state.me.username = u;
       renderSettings(); save(); toast('آیدی ذخیره شد: @' + u);
-    });
+    }, { ltr: true });
     if (act === 'edit-phone') {
       const currentPhone = state.me.phone || '+98 ';
       showPrompt('شماره تلفن', currentPhone, v => {
@@ -2928,7 +3181,7 @@ $('#settings-body').addEventListener('click', e => {
       showConfirm('پاک کردن همه داده‌ها', 'تمام گفتگوها و تنظیمات حذف شوند؟', () => {
         localStorage.removeItem(KEY);
         localStorage.removeItem(BACKUP_KEY);
-        state = defaultState();
+        state = makeEmptyState();
         applyTheme();
         renderChatList(); renderSettings(); renderContacts();
         toast('پاک شد');
@@ -3013,6 +3266,7 @@ document.addEventListener('keydown', e => {
     else if (emojiOverlay.classList.contains('show')) emojiOverlay.classList.remove('show');
     else if (avatarOverlay.classList.contains('show')) closeAvatarPicker();
     else if (modalOverlay.classList.contains('show')) modalOverlay.classList.remove('show');
+    else if ($('#screen-profile').classList.contains('open')) closeProfilePreview();
     else if ($('#screen-info').classList.contains('open')) closeInfo();
     else if ($('#screen-chat').classList.contains('open')) closeChat();
   }
@@ -3082,12 +3336,10 @@ switchTab('chats');
 checkVersionAndNotify();
 requestNotifPermission();
 
-/* Show backup welcome on very first launch */
 if (shouldShowBackupWelcome()) {
   setTimeout(showBackupWelcome, 600);
 }
 
-/* Backup reminder — if it's been > 3 days and autoBackup is on */
 if (state.settings.autoBackup && state.lastBackupAt) {
   const threeDays = 3 * 24 * 60 * 60 * 1000;
   if (Date.now() - state.lastBackupAt > threeDays) {
