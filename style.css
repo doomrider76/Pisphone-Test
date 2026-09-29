@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v1.17
+   پیسفون v1.21 — حالت وب‌سایت (بدون PWA، بدون safe-area)
    ========================================================= */
 
 :root{
@@ -35,8 +35,6 @@
   --sh-2: 0 4px 12px rgba(0,0,0,.35);
   --sh-3: 0 8px 24px rgba(0,0,0,.45);
   --sh-4: 0 16px 48px rgba(0,0,0,.55);
-
-  --nav-bg: #0a0a0c;
 }
 
 html[data-theme="light"]{
@@ -51,16 +49,14 @@ html[data-theme="light"]{
   --line: rgba(0,0,0,.07);
   --line-2: rgba(0,0,0,.1);
   --line-3: rgba(0,0,0,.15);
-  --nav-bg: #ffffff;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
 html,body{
   margin:0;padding:0;
-  width:100%;height:100%;
-  overflow:hidden;overscroll-behavior:none;
-  position:fixed;top:0;left:0;right:0;bottom:0;
+  width:100%;
+  min-height:100%;
   font-family:'Vazirmatn',-apple-system,BlinkMacSystemFont,"SF Pro Text",Tahoma,sans-serif;
   font-feature-settings:"ss01","kern";
   background:var(--bg);
@@ -68,19 +64,24 @@ html,body{
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
-  touch-action:manipulation;
   letter-spacing:-.1px;
   font-weight:400;
   -webkit-user-select:none;user-select:none;
   -webkit-touch-callout:none;
   transition:background .3s,color .3s;
+  overscroll-behavior-y:none;
 }
 
+/* سایت تمام ارتفاع قابل استفاده */
 #app{
-  position:fixed;top:0;left:0;right:0;bottom:0;
-  width:100%;height:100%;overflow:hidden;
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
   background:var(--bg);
-  display:flex;flex-direction:column;
+  display:flex;
+  flex-direction:column;
 }
 
 button,input,textarea{font-family:inherit;color:inherit;font-size:inherit}
@@ -200,10 +201,7 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
 /* ===== HEADER ===== */
 .hdr{
   display:flex;align-items:center;gap:4px;
-  padding-top:max(env(safe-area-inset-top,0px), 8px);
-  padding-left:max(env(safe-area-inset-left,0px), 8px);
-  padding-right:max(env(safe-area-inset-right,0px), 8px);
-  padding-bottom:8px;
+  padding:8px;
   min-height:56px;
   background:var(--bg);
   border-bottom:1px solid var(--line);
@@ -242,8 +240,7 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
   flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
   display:flex;flex-direction:column;
-  padding:0 8px 16px;
-  padding-bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+  padding:0 8px 64px;
   overscroll-behavior:contain;
 }
 .tab-body.hidden{display:none}
@@ -277,9 +274,7 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
 
 .list{flex:1;padding-bottom:20px;padding-top:4px}
 
-/* ============================================================
-   TOP NAV — همان ظاهر منوی پایین
-   ============================================================ */
+/* ===== TOP NAV ===== */
 .top-nav{
   display:flex;
   align-items:center;
@@ -412,7 +407,7 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
 }
 
 /* ============================================================
-   BOTTOM NAV — چسبیده به لبه پایین، بدون حاشیه سیاه
+   BOTTOM NAV — بدون safe-area (چون در مرورگر باز میشه)
    ============================================================ */
 .bottom-nav{
   position:fixed;
@@ -426,31 +421,16 @@ button svg{fill:currentColor;display:block;flex-shrink:0}
   margin:0;
   border-radius:0;
   border:none;
-  border-top:1px solid rgba(255,255,255,.07);
-  background:var(--nav-bg);
+  border-top:1px solid rgba(255,255,255,.08);
+  background:var(--bg);
   box-shadow:none;
-  padding:6px 4px 4px;
-  /* این خط مهم: نوار رو با safe-area به لبه پایین می‌چسبونه */
-  padding-bottom:calc(4px + env(safe-area-inset-bottom, 0px));
+  padding:6px 4px 8px;
   z-index:7;
   transition:background .3s, transform .28s;
 }
 
 html[data-theme="light"] .bottom-nav{
   border-top-color:rgba(0,0,0,.08);
-}
-
-/* پوشش safe-area با رنگ نوار (برای iOS که نوار رو از لبه جدا میکنه) */
-.bottom-nav::after{
-  content:"";
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:env(safe-area-inset-bottom, 0px);
-  background:var(--nav-bg);
-  pointer-events:none;
-  z-index:-1;
 }
 
 .bnav-item{
@@ -512,25 +492,19 @@ html[data-theme="light"] .bnav-item.active .bnav-icon{
   stroke-width:0;
 }
 
-/* ============================================================
-   HIDE NAV BARS WHEN IN CHAT / INFO SCREEN
-   ============================================================ */
+/* پنهان کردن نوار پایین در صفحه چت و اطلاعات */
 body.in-chat .bottom-nav,
 body.in-info .bottom-nav {
   transform: translateY(120%);
   opacity:0;
   pointer-events:none;
 }
-body.in-chat .bottom-nav::after,
-body.in-info .bottom-nav::after {
-  opacity:0;
-}
 
 /* ===== MESSAGES ===== */
 #messages{
   flex:1;min-height:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
-  padding:16px 12px 100px;
+  padding:16px 12px 20px;
   display:flex;flex-direction:column;gap:3px;
   overscroll-behavior:contain;
   background:var(--bg);
@@ -643,7 +617,6 @@ html[data-theme="light"] .msg.out .meta{color:rgba(0,0,0,.5)}
 .day-sep{align-self:center;margin:16px 0 8px}
 .day-sep span{
   background:rgba(40,40,42,.85);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   color:rgba(255,255,255,.6);
   font-size:11.5px;font-weight:600;
   padding:4px 14px;border-radius:var(--r-pill);
@@ -711,7 +684,6 @@ html[data-theme="light"] .day-sep span{
   bottom:14px;left:16px;
   width:44px;height:44px;border-radius:50%;
   background:rgba(28,28,30,.95);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border:1px solid rgba(255,255,255,.12);
   color:#fff;z-index:4;
   box-shadow:0 6px 20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08);
@@ -750,8 +722,7 @@ html[data-theme="light"] .scroll-bottom-btn{background:rgba(255,255,255,.95);col
 /* ===== COMPOSER ===== */
 .composer{
   display:flex;align-items:flex-end;gap:6px;
-  padding:10px 10px 8px;
-  padding-bottom:max(env(safe-area-inset-bottom,0px), 10px);
+  padding:10px;
   background:var(--bg);
   border-top:1px solid var(--line-2);
   flex-shrink:0;position:relative;
@@ -778,9 +749,9 @@ html[data-theme="light"] .scroll-bottom-btn{background:rgba(255,255,255,.95);col
 .rec-cancel{margin-right:auto;color:var(--text-3);font-size:13px;font-weight:500}
 
 /* ===== OVERLAYS ===== */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;}
 .overlay.show{opacity:1;pointer-events:auto}
-.sheet{width:100%;background:linear-gradient(180deg,#0f0f10,#000);border-radius:26px 26px 0 0;border-top:1px solid rgba(255,255,255,.1);padding:10px 0;padding-bottom:max(env(safe-area-inset-bottom,0px), 10px);transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);max-height:82vh;overflow-y:auto;box-shadow:0 -20px 60px rgba(0,0,0,.7);}
+.sheet{width:100%;background:linear-gradient(180deg,#0f0f10,#000);border-radius:26px 26px 0 0;border-top:1px solid rgba(255,255,255,.1);padding:10px 0 20px;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);max-height:82vh;overflow-y:auto;box-shadow:0 -20px 60px rgba(0,0,0,.7);}
 html[data-theme="light"] .sheet{background:linear-gradient(180deg,#fff,#f2f2f7);border-top-color:rgba(0,0,0,.1)}
 .overlay.show .sheet{transform:translateY(0)}
 .sheet::before{content:"";display:block;width:40px;height:4px;background:rgba(255,255,255,.18);border-radius:3px;margin:0 auto 12px;}
@@ -793,7 +764,7 @@ html[data-theme="light"] .sheet-item:active{background:rgba(0,0,0,.05)}
 .sheet-item.danger svg{fill:var(--red)}
 .sheet-title{text-align:center;font-size:12.5px;color:var(--text-3);padding:8px 0;font-weight:600;letter-spacing:.3px;}
 
-.modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;pointer-events:none;transition:opacity .2s;padding:24px;}
+.modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.8);opacity:0;pointer-events:none;transition:opacity .2s;padding:24px;}
 .modal.show{opacity:1;pointer-events:auto}
 .modal-box{background:linear-gradient(180deg,#0f0f10,#000);border:1px solid rgba(255,255,255,.1);border-radius:22px;width:100%;max-width:340px;overflow:hidden;transform:scale(.94);transition:transform .22s;box-shadow:var(--sh-4);}
 html[data-theme="light"] .modal-box{background:linear-gradient(180deg,#fff,#f2f2f7);border-color:rgba(0,0,0,.1)}
@@ -810,7 +781,7 @@ html[data-theme="light"] .modal-box{background:linear-gradient(180deg,#fff,#f2f2
 .modal-actions button.ok{font-weight:700}
 
 /* ===== EMOJI PICKER ===== */
-#emoji-panel{max-height:440px;padding:0 0 calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow:hidden;}
+#emoji-panel{max-height:440px;padding:0 0 10px;display:flex;flex-direction:column;overflow:hidden;}
 .emoji-cats{display:flex;gap:4px;padding:12px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--line);flex-shrink:0;scrollbar-width:none;}
 .emoji-cats::-webkit-scrollbar{display:none}
 .emoji-cats button{flex-shrink:0;width:44px;height:44px;border-radius:14px;font-size:22px;line-height:1;background:var(--surface)!important;border:1px solid var(--line);transition:all .15s;display:flex;align-items:center;justify-content:center;}
@@ -823,7 +794,7 @@ html[data-theme="light"] .modal-box{background:linear-gradient(180deg,#fff,#f2f2
 .emoji-grid button:active{background:rgba(59,130,246,.2)!important;transform:scale(.85)}
 
 /* ===== AVATAR PICKER ===== */
-#avatar-panel{max-height:82vh;padding:8px 0 calc(10px + env(safe-area-inset-bottom,0px))}
+#avatar-panel{max-height:82vh;padding:8px 0 20px}
 .av-tabs{display:flex;gap:6px;padding:6px 16px 14px;border-bottom:1px solid var(--line);margin-bottom:16px;}
 .av-tabs button{flex:1;padding:10px 6px;border-radius:14px;font-size:13px;font-weight:600;color:var(--text-2);background:var(--surface)!important;border:1px solid var(--line);transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:5px;}
 .av-tabs button svg{fill:currentColor;width:20px;height:20px}
@@ -876,7 +847,7 @@ html[data-theme="light"] .profile-card{background:linear-gradient(135deg,rgba(25
 .switch input:checked + .sl:before{transform:translateX(-20px)}
 .switch.purple input:checked + .sl{background:linear-gradient(180deg,#a78bfa,#8b5cf6)}
 
-#toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(20px);background:rgba(30,30,32,.96);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--line-2);color:#fff;padding:12px 22px;border-radius:var(--r-pill);font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.3s cubic-bezier(.32,.72,0,1);white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-weight:600;box-shadow:var(--sh-3);}
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(30,30,32,.96);border:1px solid var(--line-2);color:#fff;padding:12px 22px;border-radius:var(--r-pill);font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.3s cubic-bezier(.32,.72,0,1);white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis;font-weight:600;box-shadow:var(--sh-3);}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 .empty{text-align:center;color:var(--text-3);font-size:13.5px;padding:60px 40px;line-height:1.8;}
@@ -915,9 +886,8 @@ html[data-theme="light"] .info-hero{background:linear-gradient(135deg,rgba(255,2
 
 /* Landscape */
 @media (orientation: landscape) and (max-height: 500px) {
-  .hdr { min-height: 44px; padding-top: max(env(safe-area-inset-top, 0px), 4px); padding-bottom: 4px; }
-  .bottom-nav { padding: 4px 4px 2px; }
-  .bottom-nav { padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px)); }
+  .hdr { min-height: 44px; padding: 4px 8px; }
+  .bottom-nav { padding: 4px 4px 6px; }
   .bnav-item svg { width: 22px; height: 22px; }
   .bnav-item .bnav-icon { width: 40px; height: 26px; }
 }
