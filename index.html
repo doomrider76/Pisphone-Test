@@ -8,7 +8,6 @@
 <meta name="color-scheme" content="dark light">
 <title>پیسفون</title>
 
-<!-- آیکون — خارجی با تمام سایزها و type صریح -->
 <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
 <link rel="apple-touch-icon" type="image/png" sizes="167x167" href="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
 <link rel="apple-touch-icon" type="image/png" sizes="152x152" href="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
@@ -23,7 +22,6 @@
 <link rel="icon" type="image/png" sizes="16x16" href="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
 <link rel="shortcut icon" type="image/png" href="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
 
-<!-- اوپن گراف -->
 <meta property="og:title" content="پیسفون">
 <meta property="og:description" content="پیام‌رسان هوشمند">
 <meta property="og:image" content="https://nakamology.ir/assets/static/bisphone.39a2979.282e18214f9280ef247bf25dbffc4dca.png">
@@ -91,6 +89,9 @@
   <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36A5.389 5.389 0 0 1 16 13a5.4 5.4 0 0 1-4.9-3.36A5.389 5.389 0 0 1 3.1 10.9C3.04 10.46 3 10 3 9.5A5.5 5.5 0 0 1 8.5 4c.7 0 1.36.13 1.98.36A9 9 0 0 1 12 3z"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-login" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5M15 12H3"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
 <div id="app">
@@ -112,7 +113,7 @@
 
     <div class="tab-body" id="tab-chats">
       <div class="searchbar" id="searchbar" style="display:none">
-        <input id="search-input" placeholder="جستجوی چت و پیام…">
+        <input id="search-input" placeholder="جستجوی چت، پیام یا آیدی…">
         <button class="search-clear" id="search-clear">✕</button>
       </div>
 
@@ -123,6 +124,7 @@
         <button class="tnav-item" data-filter="channel">کانال</button>
         <button class="tnav-item" data-filter="ai">هوش مصنوعی</button>
         <button class="tnav-item" data-filter="saved">ذخیره‌شده</button>
+        <button class="tnav-item" data-filter="discover">کشف</button>
       </nav>
 
       <div class="list" id="chat-list"></div>
@@ -215,6 +217,17 @@
     </header>
     <div class="info-body" id="info-body"></div>
   </section>
+
+  <section class="screen" id="screen-profile">
+    <header class="hdr">
+      <button class="icon-btn back-btn" id="btn-profile-back">
+        <svg width="24" height="24"><use href="#i-back"/></svg>
+      </button>
+      <div class="hdr-title">پیش‌نمایش</div>
+      <div style="width:38px"></div>
+    </header>
+    <div class="info-body" id="profile-body"></div>
+  </section>
 </div>
 
 <nav class="bottom-nav" id="bottom-nav">
@@ -251,7 +264,7 @@
       </svg>
     </div>
     <div class="update-badge">بروزرسانی</div>
-    <div class="update-version" id="update-version">1.23</div>
+    <div class="update-version" id="update-version">10.21</div>
     <div class="update-title">نسخه جدید اعمال شد 🎉</div>
     <div class="update-sub">تغییرات این نسخه:</div>
     <div class="update-changelog" id="update-changelog"></div>
