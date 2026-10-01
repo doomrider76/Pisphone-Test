@@ -85,6 +85,20 @@ html,body{
   overscroll-behavior-y:none;
 }
 
+/* ===== Fullscreen واقعی روی iPhone ===== */
+html{
+  background:var(--bg);
+  height:100%;
+  min-height:100vh;
+  min-height:100dvh;
+}
+body{
+  height:100%;
+  overflow:hidden;
+  position:fixed;
+  inset:0;
+}
+
 #app{
   position:fixed;
   top:0;left:0;right:0;bottom:0;
@@ -1524,4 +1538,39 @@ html[data-theme="light"] #toast{color:#000}
   html[data-theme="light"] .msg-search-result{background:rgba(255,255,255,.95);}
   .sheet, .modal-box, .update-box, .backup-box, #toast, .reaction-picker{background:rgba(20,20,24,.98);}
   .msg.in{background:rgba(28,28,32,.95);}
+}
+
+/* ============================================================
+   SAFE AREA — iPhone notch & home indicator
+   ============================================================ */
+#app{
+  padding-top:env(safe-area-inset-top, 0);
+  padding-bottom:env(safe-area-inset-bottom, 0);
+  padding-left:env(safe-area-inset-left, 0);
+  padding-right:env(safe-area-inset-right, 0);
+}
+
+/* هدر با safe-area بالا */
+.hdr{
+  padding-top:calc(6px + env(safe-area-inset-top, 0));
+}
+
+/* کامپوزر با safe-area پایین */
+.composer{
+  padding-bottom:calc(10px + env(safe-area-inset-bottom, 0));
+}
+
+/* منوی پایین شناور بالاتر بیاد */
+.bottom-nav{
+  bottom:calc(12px + env(safe-area-inset-bottom, 0));
+}
+
+/* توست هم بالاتر بیاد */
+#toast{
+  bottom:calc(88px + env(safe-area-inset-bottom, 0));
+}
+
+/* بکاپ ریمایندر */
+.backup-reminder{
+  bottom:calc(92px + env(safe-area-inset-bottom, 0));
 }
