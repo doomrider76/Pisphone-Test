@@ -1,5 +1,5 @@
 /* =========================================================
-   پیسفون v10.21 — بدون دیفالت
+   پیسفون v10.20 — بدون دیفالت
    ========================================================= */
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -64,9 +64,12 @@ const VERSION_KEY = 'pisfon_version';
 const CHANGELOG = [
   'بدون هیچ داده اولیه — شروع تمیز',
   'پیام‌های ذخیره‌شده دیگه تکراری ساخته نمی‌شه',
+  'شمارنده سین تدریجی بر اساس تعداد اعضای کانال',
   'آیدی فقط انگلیسی + عدد + _ - = + (شروع با حرف یا عدد)',
-  'اضافه شدن سیستم ایدی برای فرد',
+  'آیدی نباید تکراری باشه',
   'پیش‌نمایش پروفایل با کلیک روی @آیدی',
+  'دکمه Join / Leave برای کانال و گروه',
+  'پس از rejoin پیام‌ها برمی‌گرده',
   'پیش‌نمایش @username داخل پیام‌ها',
   'پشتیبان‌گیری خودکار + بازیابی',
   'آیکون چشم برای شمارنده سین، کنار ساعت و تیک'
@@ -299,7 +302,7 @@ state = load() || makeEmptyState();
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', state.theme || 'dark');
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = state.theme === 'light' ? '#f2f2f7' : '#0d0d14';
+  if (meta) meta.content = state.theme === 'light' ? '#f2f2f7' : '#000000';
 }
 applyTheme();
 
@@ -1703,19 +1706,16 @@ function startSeenSimulation(chat, msg) {
   const totalMembers = chat.members || 0;
   if (totalMembers === 0) return;
 
-  /* هدف: ۲۰ تا ۶۰ درصد اعضا */
   const ratio = 0.2 + Math.random() * 0.4;
   const target = Math.max(1, Math.floor(totalMembers * ratio));
   msg.seenTarget = target;
   msg.seenCount = 0;
 
-  /* زمان کل: بسته به تعداد اعضا — بین ۱ تا ۵ دقیقه */
   const baseDuration = 60000 + Math.random() * 120000;
   const sizeFactor = Math.min(3, Math.log10(Math.max(100, totalMembers)) * 0.6);
   const duration = baseDuration * sizeFactor;
 
   const start = Date.now();
-  /* هر ۵ تا ۱۲ ثانیه یک آپدیت */
   const minStep = 5000;
   const maxStep = 12000;
 
